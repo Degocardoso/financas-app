@@ -2,32 +2,183 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    // Função auxiliar: verifica se o usuário está autenticado
+
+    // ========================================
+    // FUNÇÕES AUXILIARES DE SEGURANÇA
+    // ========================================
+
+    // Verifica se o usuário está autenticado
     function isSignedIn() {
       return request.auth != null;
     }
-    
-    // Função auxiliar: verifica se o usuário é o dono do documento
+
+    // Verifica se o usuário é o dono do recurso
     function isOwner(userId) {
       return request.auth.uid == userId;
     }
-    
-    // Regra para o documento do perfil do usuário
+
+    // Valida tamanho de string (evita strings muito grandes)
+    function isValidStringLength(value, maxLength) {
+      return value is string && value.size() <= maxLength;
+    }
+
+    // Valida se um valor numérico está dentro de limites razoáveis
+    function isValidAmount(amount) {
+      return amount is number &&
+             amount >= -1000000000 && // -1 bilhão (limite inferior)
+             amount <= 1000000000;    // +1 bilhão (limite superior)
+    }
+
+    // ========================================
+    // VALIDAÇÃO DE SCHEMA - TRANSAÇÕES
+    // ========================================
+    function isValidTransaction() {
+      let data = request.resource.data;
+
+      return (
+        // Campos obrigatórios existem
+        data.keys().hasAll(['date', 'description', 'amount', 'type']) &&
+
+        // Tipos corretos
+        data.date is timestamp &&
+        data.description is string &&
+        data.amount is number &&
+        data.type is string &&
+
+        // Validações de conteúdo
+        isValidStringLength(data.description, 500) &&
+        isValidAmount(data.amount) &&
+        (data.type == 'income' || data.type == 'expense') &&
+
+        // Se category existe, deve ser string válida
+        (!data.keys().hasAny(['category']) || isValidStringLength(data.category, 100)) &&
+
+        // Se importHash existe, deve ser string válida
+        (!data.keys().hasAny(['importHash']) || isValidStringLength(data.importHash, 100))
+      );
+    }
+
+    // ========================================
+    // VALIDAÇÃO DE SCHEMA - TRANSAÇÕES RECORRENTES
+    // ========================================
+    function isValidRecurringTransaction() {
+      let data = request.resource.data;
+
+      return (
+        // Campos obrigatórios
+        data.keys().hasAll(['description', 'amount', 'dayOfMonth', 'type']) &&
+
+        // Tipos corretos
+        data.description is string &&
+        data.amount is number &&
+        data.dayOfMonth is int &&
+        data.type is string &&
+
+        // Validações de conteúdo
+        isValidStringLength(data.description, 500) &&
+        isValidAmount(data.amount) &&
+        data.dayOfMonth >= 1 && data.dayOfMonth <= 31 &&
+        (data.type == 'income' || data.type == 'expense') &&
+
+        // Se startDate existe, deve ser timestamp
+        (!data.keys().hasAny(['startDate']) || data.startDate is timestamp)
+      );
+    }
+
+    // ========================================
+    // VALIDAÇÃO DE PERFIL DE USUÁRIO
+    // ========================================
+    function isValidUserProfile() {
+      let data = request.resource.data;
+
+      return (
+        // Campos obrigatórios
+        data.keys().hasAll(['name', 'email']) &&
+
+        // Tipos corretos
+        data.name is string &&
+        data.email is string &&
+
+        // Validações de tamanho
+        isValidStringLength(data.name, 100) &&
+        isValidStringLength(data.email, 100) &&
+
+        // Email deve corresponder ao email do usuário autenticado
+        data.email == request.auth.token.email
+      );
+    }
+
+    // ========================================
+    // REGRAS DE ACESSO
+    // ========================================
+
+    // Documento do perfil do usuário
     match /users/{userId} {
-      // Usuário só pode ler/escrever seu próprio perfil
-      allow read, write: if isSignedIn() && isOwner(userId);
-      
-      // Regra para subcoleção de transações
+      // READ: Usuário só pode ler seu próprio perfil
+      allow read: if isSignedIn() && isOwner(userId);
+
+      // CREATE: Apenas na criação da conta (durante registro)
+      allow create: if isSignedIn() &&
+                       isOwner(userId) &&
+                       isValidUserProfile();
+
+      // UPDATE: Usuário pode atualizar seu perfil, mas não pode mudar o email
+      allow update: if isSignedIn() &&
+                       isOwner(userId) &&
+                       isValidUserProfile() &&
+                       request.resource.data.email == resource.data.email;
+
+      // DELETE: Usuário pode deletar seu próprio perfil
+      allow delete: if isSignedIn() && isOwner(userId);
+
+      // ========================================
+      // SUBCOLEÇÃO: TRANSAÇÕES
+      // ========================================
       match /transactions/{transactionId} {
-        // Usuário só acessa transações dentro do SEU documento
-        allow read, write: if isSignedIn() && isOwner(userId);
+        // READ: Usuário só acessa suas próprias transações
+        allow read: if isSignedIn() && isOwner(userId);
+
+        // CREATE: Validação completa de schema
+        allow create: if isSignedIn() &&
+                         isOwner(userId) &&
+                         isValidTransaction();
+
+        // UPDATE: Pode atualizar, mas mantendo validação
+        allow update: if isSignedIn() &&
+                         isOwner(userId) &&
+                         isValidTransaction();
+
+        // DELETE: Pode deletar suas transações
+        allow delete: if isSignedIn() && isOwner(userId);
       }
-      
-      // Regra para subcoleção de transações recorrentes
+
+      // ========================================
+      // SUBCOLEÇÃO: TRANSAÇÕES RECORRENTES
+      // ========================================
       match /recurringTransactions/{recurringId} {
-        allow read, write: if isSignedIn() && isOwner(userId);
+        // READ: Usuário só acessa suas próprias recorrências
+        allow read: if isSignedIn() && isOwner(userId);
+
+        // CREATE: Validação completa de schema
+        allow create: if isSignedIn() &&
+                         isOwner(userId) &&
+                         isValidRecurringTransaction();
+
+        // UPDATE: Pode atualizar, mas mantendo validação
+        allow update: if isSignedIn() &&
+                         isOwner(userId) &&
+                         isValidRecurringTransaction();
+
+        // DELETE: Pode deletar suas recorrências
+        allow delete: if isSignedIn() && isOwner(userId);
       }
+    }
+
+    // ========================================
+    // BLOQUEIO GLOBAL: QUALQUER OUTRO ACESSO É NEGADO
+    // ========================================
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
 }
