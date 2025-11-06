@@ -1,0 +1,33 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Função auxiliar: verifica se o usuário está autenticado
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    
+    // Função auxiliar: verifica se o usuário é o dono do documento
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+    
+    // Regra para o documento do perfil do usuário
+    match /users/{userId} {
+      // Usuário só pode ler/escrever seu próprio perfil
+      allow read, write: if isSignedIn() && isOwner(userId);
+      
+      // Regra para subcoleção de transações
+      match /transactions/{transactionId} {
+        // Usuário só acessa transações dentro do SEU documento
+        allow read, write: if isSignedIn() && isOwner(userId);
+      }
+      
+      // Regra para subcoleção de transações recorrentes
+      match /recurringTransactions/{recurringId} {
+        allow read, write: if isSignedIn() && isOwner(userId);
+      }
+    }
+  }
+}
