@@ -115,77 +115,118 @@ export default function HomeScreen({ navigation }) {
         </Text>
       </View>
 
-      {/* Novos Recursos */}
-      <View style={styles.menuGrid}>
-        <TouchableOpacity
-          style={[styles.menuButton, { backgroundColor: theme.colors.surface }]}
-          onPress={() => navigation.navigate('Incomes')}
+      {/* Menu Horizontal com Scroll */}
+      <View style={styles.menuSection}>
+        <Text style={[styles.menuSectionTitle, { color: theme.colors.text }]}>Funcionalidades</Text>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.horizontalMenu}
         >
-          <Text style={styles.menuIcon}>💰</Text>
-          <Text style={[styles.menuText, { color: theme.colors.text }]}>Receitas</Text>
-        </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.menuCard, { backgroundColor: theme.colors.surface }]}
+            onPress={() => navigation.navigate('Incomes')}
+          >
+            <View style={[styles.iconContainer, { backgroundColor: theme.colors.success + '20' }]}>
+              <Text style={styles.menuCardIcon}>💰</Text>
+            </View>
+            <Text style={[styles.menuCardTitle, { color: theme.colors.text }]}>Receitas</Text>
+            <Text style={[styles.menuCardSubtitle, { color: theme.colors.textSecondary }]}>
+              Únicas e recorrentes
+            </Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity
-          style={[styles.menuButton, { backgroundColor: theme.colors.surface }]}
-          onPress={() => navigation.navigate('Expenses')}
-        >
-          <Text style={styles.menuIcon}>💳</Text>
-          <Text style={[styles.menuText, { color: theme.colors.text }]}>Despesas{'\n'}Gerais</Text>
-        </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.menuCard, { backgroundColor: theme.colors.surface }]}
+            onPress={() => navigation.navigate('Expenses')}
+          >
+            <View style={[styles.iconContainer, { backgroundColor: theme.colors.error + '20' }]}>
+              <Text style={styles.menuCardIcon}>💳</Text>
+            </View>
+            <Text style={[styles.menuCardTitle, { color: theme.colors.text }]}>Despesas Gerais</Text>
+            <Text style={[styles.menuCardSubtitle, { color: theme.colors.textSecondary }]}>
+              Importadas
+            </Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity
-          style={[styles.menuButton, { backgroundColor: theme.colors.surface }]}
-          onPress={() => navigation.navigate('DailyBudget')}
-        >
-          <Text style={styles.menuIcon}>📆</Text>
-          <Text style={[styles.menuText, { color: theme.colors.text }]}>Despesas{'\n'}Diárias</Text>
-        </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.menuCard, { backgroundColor: theme.colors.surface }]}
+            onPress={() => navigation.navigate('DailyBudget')}
+          >
+            <View style={[styles.iconContainer, { backgroundColor: theme.colors.warning + '20' }]}>
+              <Text style={styles.menuCardIcon}>📆</Text>
+            </View>
+            <Text style={[styles.menuCardTitle, { color: theme.colors.text }]}>Despesas Diárias</Text>
+            <Text style={[styles.menuCardSubtitle, { color: theme.colors.textSecondary }]}>
+              Orçamento diário
+            </Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity
-          style={[styles.menuButton, { backgroundColor: theme.colors.surface }]}
-          onPress={() => navigation.navigate('Dashboard')}
-        >
-          <Text style={styles.menuIcon}>📈</Text>
-          <Text style={[styles.menuText, { color: theme.colors.text }]}>Dashboard</Text>
-        </TouchableOpacity>
-      </View>
+          <TouchableOpacity
+            style={[styles.menuCard, { backgroundColor: theme.colors.surface }]}
+            onPress={() => navigation.navigate('Dashboard')}
+          >
+            <View style={[styles.iconContainer, { backgroundColor: theme.colors.primary + '20' }]}>
+              <Text style={styles.menuCardIcon}>📈</Text>
+            </View>
+            <Text style={[styles.menuCardTitle, { color: theme.colors.text }]}>Dashboard</Text>
+            <Text style={[styles.menuCardSubtitle, { color: theme.colors.textSecondary }]}>
+              Gráficos
+            </Text>
+          </TouchableOpacity>
 
-      {/* Recursos Originais */}
-      <View style={styles.menuGrid}>
-        <TouchableOpacity
-          style={[styles.menuButton, { backgroundColor: theme.colors.surface }]}
-          onPress={() => navigation.navigate('Import')}
-        >
-          <Text style={styles.menuIcon}>📥</Text>
-          <Text style={[styles.menuText, { color: theme.colors.text }]}>Importar{'\n'}Extrato</Text>
-        </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.menuCard, { backgroundColor: theme.colors.surface }]}
+            onPress={() => navigation.navigate('Import')}
+          >
+            <View style={[styles.iconContainer, { backgroundColor: theme.colors.info + '20' }]}>
+              <Text style={styles.menuCardIcon}>📥</Text>
+            </View>
+            <Text style={[styles.menuCardTitle, { color: theme.colors.text }]}>Importar</Text>
+            <Text style={[styles.menuCardSubtitle, { color: theme.colors.textSecondary }]}>
+              CSV do banco
+            </Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity
-          style={[styles.menuButton, { backgroundColor: theme.colors.surface }]}
-          onPress={() => navigation.navigate('Recurring')}
-        >
-          <Text style={styles.menuIcon}>🔄</Text>
-          <Text style={[styles.menuText, { color: theme.colors.text }]}>Lançamentos{'\n'}Futuros</Text>
-        </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.menuCard, { backgroundColor: theme.colors.surface }]}
+            onPress={() => navigation.navigate('Recurring')}
+          >
+            <View style={[styles.iconContainer, { backgroundColor: theme.colors.secondary + '20' }]}>
+              <Text style={styles.menuCardIcon}>🔄</Text>
+            </View>
+            <Text style={[styles.menuCardTitle, { color: theme.colors.text }]}>Futuros</Text>
+            <Text style={[styles.menuCardSubtitle, { color: theme.colors.textSecondary }]}>
+              Lançamentos
+            </Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity
-          style={[styles.menuButton, { backgroundColor: theme.colors.surface }]}
-          onPress={() => navigation.navigate('Projection')}
-        >
-          <Text style={styles.menuIcon}>📊</Text>
-          <Text style={[styles.menuText, { color: theme.colors.text }]}>Projeção de{'\n'}Saldo</Text>
-        </TouchableOpacity>
-      </View>
+          <TouchableOpacity
+            style={[styles.menuCard, { backgroundColor: theme.colors.surface }]}
+            onPress={() => navigation.navigate('Projection')}
+          >
+            <View style={[styles.iconContainer, { backgroundColor: theme.colors.success + '20' }]}>
+              <Text style={styles.menuCardIcon}>📊</Text>
+            </View>
+            <Text style={[styles.menuCardTitle, { color: theme.colors.text }]}>Projeção</Text>
+            <Text style={[styles.menuCardSubtitle, { color: theme.colors.textSecondary }]}>
+              Saldo futuro
+            </Text>
+          </TouchableOpacity>
 
-      {/* Configurações */}
-      <View style={styles.settingsSection}>
-        <TouchableOpacity
-          style={[styles.settingsButton, { backgroundColor: theme.colors.surface }]}
-          onPress={() => navigation.navigate('Settings')}
-        >
-          <Text style={styles.settingsIcon}>⚙️</Text>
-          <Text style={[styles.settingsText, { color: theme.colors.text }]}>Configurações</Text>
-        </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.menuCard, { backgroundColor: theme.colors.surface }]}
+            onPress={() => navigation.navigate('Settings')}
+          >
+            <View style={[styles.iconContainer, { backgroundColor: theme.colors.primary + '20' }]}>
+              <Text style={styles.menuCardIcon}>⚙️</Text>
+            </View>
+            <Text style={[styles.menuCardTitle, { color: theme.colors.text }]}>Configurações</Text>
+            <Text style={[styles.menuCardSubtitle, { color: theme.colors.textSecondary }]}>
+              Ajustes do app
+            </Text>
+          </TouchableOpacity>
+        </ScrollView>
       </View>
 
       <View style={styles.transactionsSection}>
@@ -268,28 +309,51 @@ const styles = StyleSheet.create({
     marginTop: 8,
     opacity: 0.8,
   },
-  menuGrid: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    padding: 10,
+  // Menu Horizontal
+  menuSection: {
+    marginTop: 10,
+    marginBottom: 20,
   },
-  menuButton: {
+  menuSectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginLeft: 20,
+    marginBottom: 15,
+  },
+  horizontalMenu: {
+    paddingHorizontal: 15,
+    gap: 15,
+  },
+  menuCard: {
+    width: 140,
     padding: 20,
     borderRadius: 15,
     alignItems: 'center',
-    width: '30%',
     elevation: 3,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
   },
-  menuIcon: {
-    fontSize: 40,
-    marginBottom: 10,
+  iconContainer: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 12,
   },
-  menuText: {
-    fontSize: 12,
+  menuCardIcon: {
+    fontSize: 32,
+  },
+  menuCardTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 4,
+    textAlign: 'center',
+  },
+  menuCardSubtitle: {
+    fontSize: 11,
     textAlign: 'center',
   },
   transactionsSection: {
@@ -330,29 +394,5 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontSize: 16,
     marginTop: 20,
-  },
-  settingsSection: {
-    padding: 20,
-    paddingTop: 10,
-  },
-  settingsButton: {
-    padding: 20,
-    borderRadius: 15,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-  },
-  settingsIcon: {
-    fontSize: 24,
-    marginRight: 12,
-  },
-  settingsText: {
-    fontSize: 16,
-    fontWeight: '600',
   },
 });
