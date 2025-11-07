@@ -366,17 +366,23 @@ export const deleteRecurringTransaction = async (recurringId) => {
 };
 
 // Calcula o saldo atual baseado nas transações
+/**
+ * FUNÇÃO ATUALIZADA - Agora usa balanceService para integrar todas as fontes
+ * Calcula saldo considerando: transactions + incomes únicas + dailyExpenses
+ * @returns {Promise<number>} Saldo atual unificado
+ */
 export const getCurrentBalance = async () => {
   try {
-    const result = await getTransactions();
-    if (!result.success) return 0;
-    
-    let balance = 0;
-    result.transactions.forEach(transaction => {
-      balance += transaction.amount;
-    });
-    
-    return balance;
+    // Importar aqui para evitar dependência circular
+    const { getUnifiedBalance } = require('./balanceService');
+
+    const result = await getUnifiedBalance();
+    if (!result.success) {
+      console.error('Erro ao buscar saldo unificado:', result.error);
+      return 0;
+    }
+
+    return result.balance;
   } catch (error) {
     console.error('Erro ao calcular saldo:', error);
     return 0;
