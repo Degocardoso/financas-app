@@ -13,7 +13,7 @@ import {
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system';
 import { useTheme } from '../context/ThemeContext';
-import { parseCSV, mapCSVToTransaction, validateCSVStructure } from '../utils/csvParser';
+import { parseCSV, mapCSVToTransaction, validateCSVStructure, BANK_TYPES } from '../utils/csvParser';
 import { addTransaction, transactionExists } from '../services/transactionService';
 import { generateTransactionHash } from '../utils/deduplication';
 
@@ -21,6 +21,7 @@ export default function ImportScreen({ navigation }) {
   const { theme } = useTheme();
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState(null);
+  const [selectedBank, setSelectedBank] = useState(BANK_TYPES.NUBANK);
 
   const pickDocument = async () => {
     try {
@@ -59,9 +60,9 @@ export default function ImportScreen({ navigation }) {
       
       // Parse do CSV
       const data = await parseCSV(csvText);
-      
-      // Valida estrutura
-      const validation = validateCSVStructure(data);
+
+      // Valida estrutura baseado no banco selecionado
+      const validation = validateCSVStructure(data, selectedBank);
       if (!validation.valid) {
         Alert.alert('Erro', validation.error);
         setImporting(false);
@@ -75,8 +76,8 @@ export default function ImportScreen({ navigation }) {
 
       for (const row of data) {
         try {
-          // Mapeia para o formato do app
-          const transaction = mapCSVToTransaction(row);
+          // Mapeia para o formato do app baseado no banco
+          const transaction = mapCSVToTransaction(row, selectedBank);
           
           if (!transaction) {
             errors++;
@@ -152,24 +153,90 @@ export default function ImportScreen({ navigation }) {
       </View>
 
       <View style={styles.content}>
+        {/* Seleção de Banco */}
+        <View style={[styles.bankSelectionCard, { backgroundColor: theme.colors.surface }]}>
+          <Text style={[styles.bankSelectionTitle, { color: theme.colors.text }]}>🏦 Selecione seu banco:</Text>
+
+          {/* Nubank */}
+          <TouchableOpacity
+            style={styles.radioOption}
+            onPress={() => setSelectedBank(BANK_TYPES.NUBANK)}
+          >
+            <View style={[styles.radioCircle, { borderColor: theme.colors.primary }]}>
+              {selectedBank === BANK_TYPES.NUBANK && (
+                <View style={[styles.radioCircleSelected, { backgroundColor: theme.colors.primary }]} />
+              )}
+            </View>
+            <Text style={[styles.radioLabel, { color: theme.colors.text }]}>Nubank</Text>
+          </TouchableOpacity>
+
+          {/* Santander */}
+          <TouchableOpacity
+            style={styles.radioOption}
+            onPress={() => setSelectedBank(BANK_TYPES.SANTANDER)}
+          >
+            <View style={[styles.radioCircle, { borderColor: theme.colors.primary }]}>
+              {selectedBank === BANK_TYPES.SANTANDER && (
+                <View style={[styles.radioCircleSelected, { backgroundColor: theme.colors.primary }]} />
+              )}
+            </View>
+            <Text style={[styles.radioLabel, { color: theme.colors.text }]}>Santander</Text>
+          </TouchableOpacity>
+
+          {/* Inter */}
+          <TouchableOpacity
+            style={styles.radioOption}
+            onPress={() => setSelectedBank(BANK_TYPES.INTER)}
+          >
+            <View style={[styles.radioCircle, { borderColor: theme.colors.primary }]}>
+              {selectedBank === BANK_TYPES.INTER && (
+                <View style={[styles.radioCircleSelected, { backgroundColor: theme.colors.primary }]} />
+              )}
+            </View>
+            <Text style={[styles.radioLabel, { color: theme.colors.text }]}>Banco Inter</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Instruções por banco */}
         <View style={[styles.instructionsCard, { backgroundColor: theme.colors.surface }]}>
           <Text style={[styles.instructionsTitle, { color: theme.colors.text }]}>📋 Como importar:</Text>
           <Text style={[styles.instructionsText, { color: theme.colors.textSecondary }]}>
-            1. Baixe o extrato do seu banco em formato CSV{'\n'}
-            2. O arquivo deve conter as colunas: Data, Descrição e Valor{'\n'}
+            1. Baixe o extrato do {selectedBank === BANK_TYPES.NUBANK ? 'Nubank' : selectedBank === BANK_TYPES.SANTANDER ? 'Santander' : 'Banco Inter'} em formato CSV{'\n'}
+            2. Selecione seu banco acima{'\n'}
             3. Clique no botão abaixo para selecionar o arquivo{'\n'}
             4. O app irá evitar duplicatas automaticamente
           </Text>
         </View>
 
+        {/* Exemplo de CSV por banco */}
         <View style={[styles.exampleCard, { backgroundColor: theme.colors.surfaceVariant }]}>
-          <Text style={[styles.exampleTitle, { color: theme.colors.text }]}>Exemplo de CSV válido:</Text>
-          <Text style={[styles.exampleText, { color: theme.colors.textSecondary }]}>
-            Data,Descrição,Valor{'\n'}
-            05/11/2025,Salário,5000.00{'\n'}
-            03/11/2025,Supermercado,-250.50{'\n'}
-            01/11/2025,Aluguel,-1200.00
+          <Text style={[styles.exampleTitle, { color: theme.colors.text }]}>
+            Exemplo de CSV {selectedBank === BANK_TYPES.NUBANK ? 'Nubank' : selectedBank === BANK_TYPES.SANTANDER ? 'Santander' : 'Inter'}:
           </Text>
+          {selectedBank === BANK_TYPES.NUBANK && (
+            <Text style={[styles.exampleText, { color: theme.colors.textSecondary }]}>
+              date,title,amount{'\n'}
+              2025-10-26,Uber *Trip,14.15{'\n'}
+              2025-10-25,PlayStation - 1/2,25.85{'\n'}
+              2025-10-24,Metro,46.90
+            </Text>
+          )}
+          {selectedBank === BANK_TYPES.SANTANDER && (
+            <Text style={[styles.exampleText, { color: theme.colors.textSecondary }]}>
+              Data,Lançamento,Valor{'\n'}
+              05/11/2025,Salário,5000.00{'\n'}
+              03/11/2025,Supermercado,-250.50{'\n'}
+              01/11/2025,Aluguel,-1200.00
+            </Text>
+          )}
+          {selectedBank === BANK_TYPES.INTER && (
+            <Text style={[styles.exampleText, { color: theme.colors.textSecondary }]}>
+              Data,Descrição,Valor{'\n'}
+              05/11/2025,Salário,5000.00{'\n'}
+              03/11/2025,Supermercado,-250.50{'\n'}
+              01/11/2025,Aluguel,-1200.00
+            </Text>
+          )}
         </View>
 
         {importing ? (
@@ -229,6 +296,40 @@ const styles = StyleSheet.create({
   content: {
     padding: 20,
   },
+  // Estilos para seleção de banco
+  bankSelectionCard: {
+    padding: 20,
+    borderRadius: 10,
+    marginBottom: 20,
+  },
+  bankSelectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 15,
+  },
+  radioOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 15,
+  },
+  radioCircle: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  radioCircleSelected: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+  },
+  radioLabel: {
+    fontSize: 16,
+  },
+  // Outros estilos
   instructionsCard: {
     padding: 20,
     borderRadius: 10,
