@@ -74,14 +74,17 @@ const IncomesScreen = () => {
       return;
     }
 
-    if (incomeType === 'recurring' && !frequency) {
-      Alert.alert('Erro', 'Frequência é obrigatória para receitas recorrentes');
-      return;
-    }
+    // Validações específicas para receita recorrente
+    if (incomeType === 'recurring') {
+      if (!frequency) {
+        Alert.alert('Erro', 'Frequência é obrigatória para receitas recorrentes');
+        return;
+      }
 
-    if (frequency === 'monthly' && (!dayOfMonth || dayOfMonth < 1 || dayOfMonth > 31)) {
-      Alert.alert('Erro', 'Dia do mês deve estar entre 1 e 31');
-      return;
+      if (frequency === 'monthly' && (!dayOfMonth || dayOfMonth < 1 || dayOfMonth > 31)) {
+        Alert.alert('Erro', 'Para receitas mensais, o dia do mês deve estar entre 1 e 31');
+        return;
+      }
     }
 
     const incomeData = {
