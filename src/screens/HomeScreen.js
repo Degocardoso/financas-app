@@ -85,8 +85,36 @@ export default function HomeScreen({ navigation }) {
         <Text style={styles.balanceValue}>{formatCurrency(balance)}</Text>
       </View>
 
+      {/* Novos Recursos */}
       <View style={styles.menuGrid}>
-        <TouchableOpacity 
+        <TouchableOpacity
+          style={styles.menuButton}
+          onPress={() => navigation.navigate('Incomes')}
+        >
+          <Text style={styles.menuIcon}>💰</Text>
+          <Text style={styles.menuText}>Receitas</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.menuButton}
+          onPress={() => navigation.navigate('DailyBudget')}
+        >
+          <Text style={styles.menuIcon}>📆</Text>
+          <Text style={styles.menuText}>Despesas{'\n'}Diárias</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.menuButton}
+          onPress={() => navigation.navigate('Dashboard')}
+        >
+          <Text style={styles.menuIcon}>📈</Text>
+          <Text style={styles.menuText}>Dashboard</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Recursos Originais */}
+      <View style={styles.menuGrid}>
+        <TouchableOpacity
           style={styles.menuButton}
           onPress={() => navigation.navigate('Import')}
         >
@@ -94,7 +122,7 @@ export default function HomeScreen({ navigation }) {
           <Text style={styles.menuText}>Importar{'\n'}Extrato</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.menuButton}
           onPress={() => navigation.navigate('Recurring')}
         >
@@ -102,12 +130,23 @@ export default function HomeScreen({ navigation }) {
           <Text style={styles.menuText}>Lançamentos{'\n'}Futuros</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.menuButton}
           onPress={() => navigation.navigate('Projection')}
         >
           <Text style={styles.menuIcon}>📊</Text>
           <Text style={styles.menuText}>Projeção de{'\n'}Saldo</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Configurações */}
+      <View style={styles.settingsSection}>
+        <TouchableOpacity
+          style={styles.settingsButton}
+          onPress={() => navigation.navigate('Settings')}
+        >
+          <Text style={styles.settingsIcon}>⚙️</Text>
+          <Text style={styles.settingsText}>Configurações</Text>
         </TouchableOpacity>
       </View>
 
@@ -262,5 +301,31 @@ const styles = StyleSheet.create({
     color: '#7f8c8d',
     fontSize: 16,
     marginTop: 20,
+  },
+  settingsSection: {
+    padding: 20,
+    paddingTop: 10,
+  },
+  settingsButton: {
+    backgroundColor: 'white',
+    padding: 20,
+    borderRadius: 15,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+  },
+  settingsIcon: {
+    fontSize: 24,
+    marginRight: 12,
+  },
+  settingsText: {
+    fontSize: 16,
+    color: '#2c3e50',
+    fontWeight: '600',
   },
 });
