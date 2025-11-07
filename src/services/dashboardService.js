@@ -109,10 +109,25 @@ export const getMonthlyForecast = async (year, month) => {
     // Calcular despesas previstas
     let totalExpenses = 0;
 
-    // Despesas recorrentes
+    // Despesas recorrentes - CORRIGIDO: considerar frequência
     recurringResult.recurring.forEach(recurring => {
       if (recurring.type === 'expense') {
-        totalExpenses += Math.abs(recurring.amount);
+        const amount = Math.abs(recurring.amount);
+        // Assumir mensal se não tiver frequência especificada (despesas antigas)
+        const frequency = recurring.frequency || 'monthly';
+
+        if (frequency === 'monthly') {
+          totalExpenses += amount;
+        } else if (frequency === 'weekly') {
+          totalExpenses += amount * 4;
+        } else if (frequency === 'biweekly') {
+          totalExpenses += amount * 2;
+        } else if (frequency === 'daily') {
+          const daysInMonth = getDaysInMonth(year, month);
+          totalExpenses += amount * daysInMonth;
+        } else if (frequency === 'yearly') {
+          totalExpenses += amount / 12;
+        }
       }
     });
 
@@ -221,10 +236,28 @@ export const getDailyCashFlowProjection = async (months = 6) => {
         }
       });
 
-      // Calcular despesas recorrentes do dia
+      // Calcular despesas recorrentes do dia - CORRIGIDO: considerar frequência
       recurringResult.recurring.forEach(recurring => {
-        if (recurring.type === 'expense' && recurring.dayOfMonth === dayOfMonth) {
-          dailyExpense += Math.abs(recurring.amount);
+        if (recurring.type === 'expense') {
+          const amount = Math.abs(recurring.amount);
+          const frequency = recurring.frequency || 'monthly';
+
+          if (frequency === 'monthly' && recurring.dayOfMonth === dayOfMonth) {
+            dailyExpense += amount;
+          } else if (frequency === 'daily') {
+            dailyExpense += amount;
+          } else if (frequency === 'weekly') {
+            // Incluir se for o dia da semana certo (simplificação: assumir 1x por semana)
+            const dayOfWeek = currentDate.getDay();
+            if (recurring.dayOfWeek === dayOfWeek || !recurring.dayOfWeek) {
+              dailyExpense += amount;
+            }
+          } else if (frequency === 'biweekly') {
+            // Incluir a cada 14 dias (simplificação)
+            if (dayOfMonth % 14 === 0 || dayOfMonth === 1 || dayOfMonth === 15) {
+              dailyExpense += amount;
+            }
+          }
         }
       });
 
