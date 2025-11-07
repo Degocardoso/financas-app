@@ -343,11 +343,6 @@ export const getDashboardStats = async () => {
     const recurringResult = await getRecurringTransactions();
     const totalRecurring = recurringResult.success ? recurringResult.recurring.length : 0;
 
-    // Total de transações
-    const totalTransactions = transactionsResult.success
-      ? transactionsResult.transactions.length
-      : 0;
-
     // Gastos diários este mês
     const now = new Date();
     const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
