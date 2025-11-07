@@ -8,20 +8,28 @@ import {
   StyleSheet,
   ScrollView,
   Alert,
-  Modal
+  Modal,
+  RefreshControl
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import {
   getRecurringTransactions,
   addRecurringTransaction,
-  deleteRecurringTransaction
+  deleteRecurringTransaction,
+  getTransactions,
+  deleteTransaction
 } from '../services/transactionService';
+import { getIncomes, deleteIncome } from '../services/incomeService';
 import { useTheme } from '../context/ThemeContext';
 
 export default function RecurringScreen({ navigation }) {
   const { theme } = useTheme();
   const [recurring, setRecurring] = useState([]);
+  const [futureIncomes, setFutureIncomes] = useState([]);
+  const [futureTransactions, setFutureTransactions] = useState([]);
+  const [allFuture, setAllFuture] = useState([]);
   const [modalVisible, setModalVisible] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [formData, setFormData] = useState({
     description: '',
     amount: '',
@@ -31,14 +39,82 @@ export default function RecurringScreen({ navigation }) {
   const [showDatePicker, setShowDatePicker] = useState(false);
 
   useEffect(() => {
-    loadRecurring();
+    loadAllFutureTransactions();
   }, []);
 
-  const loadRecurring = async () => {
-    const result = await getRecurringTransactions();
-    if (result.success) {
-      setRecurring(result.recurring);
+  const loadAllFutureTransactions = async () => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // 1. Carregar transações recorrentes
+    const recurringResult = await getRecurringTransactions();
+    const recurringList = recurringResult.success ? recurringResult.recurring : [];
+
+    // 2. Carregar receitas únicas futuras
+    const incomesResult = await getIncomes();
+    const futureIncomesList = [];
+    if (incomesResult.success) {
+      incomesResult.incomes.forEach(income => {
+        if (income.incomeType === 'single' && income.date) {
+          const incomeDate = income.date.toDate();
+          incomeDate.setHours(0, 0, 0, 0);
+          if (incomeDate > today) {
+            futureIncomesList.push({
+              ...income,
+              sourceType: 'futureIncome',
+              displayDate: incomeDate
+            });
+          }
+        }
+        // Receitas recorrentes já estão em recurring, não duplicar
+      });
     }
+
+    // 3. Carregar transações/despesas únicas futuras
+    const transactionsResult = await getTransactions();
+    const futureTransactionsList = [];
+    if (transactionsResult.success) {
+      transactionsResult.transactions.forEach(transaction => {
+        if (transaction.date) {
+          const transactionDate = transaction.date.toDate();
+          transactionDate.setHours(0, 0, 0, 0);
+          if (transactionDate > today) {
+            futureTransactionsList.push({
+              ...transaction,
+              sourceType: 'futureTransaction',
+              displayDate: transactionDate
+            });
+          }
+        }
+      });
+    }
+
+    // 4. Consolidar e ordenar por data
+    const consolidated = [
+      ...recurringList.map(r => ({ ...r, sourceType: 'recurring' })),
+      ...futureIncomesList,
+      ...futureTransactionsList
+    ].sort((a, b) => {
+      // Recorrentes primeiro (não têm displayDate específica)
+      if (a.sourceType === 'recurring' && b.sourceType !== 'recurring') return -1;
+      if (a.sourceType !== 'recurring' && b.sourceType === 'recurring') return 1;
+      if (a.sourceType === 'recurring' && b.sourceType === 'recurring') {
+        return (a.dayOfMonth || 0) - (b.dayOfMonth || 0);
+      }
+      // Ordenar futuras por data
+      return a.displayDate - b.displayDate;
+    });
+
+    setRecurring(recurringList);
+    setFutureIncomes(futureIncomesList);
+    setFutureTransactions(futureTransactionsList);
+    setAllFuture(consolidated);
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadAllFutureTransactions();
+    setRefreshing(false);
   };
 
   const handleAdd = async () => {
@@ -76,13 +152,14 @@ export default function RecurringScreen({ navigation }) {
         dayOfMonth: '1',
         startDate: new Date(),
       });
-      loadRecurring();
+      loadAllFutureTransactions();
     } else {
       Alert.alert('Erro', result.error);
     }
   };
 
-  const handleDelete = (id, description) => {
+  const handleDelete = (item) => {
+    const description = item.description || item.title || 'este lançamento';
     Alert.alert(
       'Confirmar Exclusão',
       `Deseja excluir "${description}"?`,
@@ -92,9 +169,21 @@ export default function RecurringScreen({ navigation }) {
           text: 'Excluir',
           style: 'destructive',
           onPress: async () => {
-            const result = await deleteRecurringTransaction(id);
-            if (result.success) {
-              loadRecurring();
+            let result;
+
+            if (item.sourceType === 'recurring') {
+              result = await deleteRecurringTransaction(item.id);
+            } else if (item.sourceType === 'futureIncome') {
+              result = await deleteIncome(item.id);
+            } else if (item.sourceType === 'futureTransaction') {
+              result = await deleteTransaction(item.id);
+            }
+
+            if (result && result.success) {
+              Alert.alert('Sucesso', 'Lançamento excluído!');
+              loadAllFutureTransactions();
+            } else {
+              Alert.alert('Erro', result?.error || 'Erro ao excluir');
             }
           }
         }
@@ -115,6 +204,50 @@ export default function RecurringScreen({ navigation }) {
     return d.toLocaleDateString('pt-BR');
   };
 
+  const renderItem = (item) => {
+    const isRecurring = item.sourceType === 'recurring';
+    const isFutureIncome = item.sourceType === 'futureIncome';
+    const isFutureTransaction = item.sourceType === 'futureTransaction';
+
+    let displayInfo = '';
+    if (isRecurring) {
+      displayInfo = `🔄 Recorrente • Todo dia ${item.dayOfMonth}`;
+    } else if (isFutureIncome) {
+      displayInfo = `💰 Receita Única • ${formatDate(item.displayDate)}`;
+    } else if (isFutureTransaction) {
+      displayInfo = `💳 Transação Única • ${formatDate(item.displayDate)}`;
+    }
+
+    const amount = item.amount || 0;
+
+    return (
+      <View key={`${item.sourceType}-${item.id}`} style={[styles.recurringItem, { backgroundColor: theme.colors.surface }]}>
+        <View style={styles.recurringLeft}>
+          <Text style={[styles.recurringDescription, { color: theme.colors.text }]}>
+            {item.description || item.title || 'Sem descrição'}
+          </Text>
+          <Text style={[styles.recurringInfo, { color: theme.colors.textSecondary }]}>
+            {displayInfo}
+          </Text>
+        </View>
+        <View style={styles.recurringRight}>
+          <Text style={[
+            styles.recurringAmount,
+            { color: amount >= 0 ? theme.colors.success : theme.colors.error }
+          ]}>
+            {formatCurrency(Math.abs(amount))}
+          </Text>
+          <TouchableOpacity
+            onPress={() => handleDelete(item)}
+            style={styles.deleteButton}
+          >
+            <Text style={styles.deleteButtonText}>🗑️</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  };
+
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <View style={[styles.header, { backgroundColor: theme.colors.primary }]}>
@@ -122,48 +255,34 @@ export default function RecurringScreen({ navigation }) {
           <Text style={[styles.backButton, { color: theme.colors.onPrimary }]}>← Voltar</Text>
         </TouchableOpacity>
         <Text style={[styles.title, { color: theme.colors.onPrimary }]}>Lançamentos Futuros</Text>
+        <Text style={[styles.subtitle, { color: theme.colors.onPrimary }]}>
+          Recorrentes e agendados
+        </Text>
       </View>
 
-      <ScrollView style={styles.content}>
-        <View style={[styles.infoCard, { backgroundColor: theme.colors.warningContainer }]}>
-          <Text style={[styles.infoText, { color: theme.colors.onWarningContainer }]}>
-            Cadastre receitas e despesas recorrentes (salário, aluguel, etc.)
-            ou pontuais (IPVA, IPTU) para projetar seu saldo futuro.
+      <ScrollView
+        style={styles.content}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+      >
+        <View style={[styles.infoCard, { backgroundColor: theme.colors.surface }]}>
+          <Text style={[styles.infoText, { color: theme.colors.textSecondary }]}>
+            📌 Esta tela mostra:{'\n'}
+            • Lançamentos recorrentes (salário, aluguel, etc.){'\n'}
+            • Receitas com data futura{'\n'}
+            • Despesas/transações com data futura
           </Text>
         </View>
 
-        {recurring.length === 0 ? (
+        {allFuture.length === 0 ? (
           <Text style={[styles.emptyText, { color: theme.colors.textSecondary }]}>
-            Nenhum lançamento cadastrado.{'\n'}
-            Clique no botão + para adicionar.
+            Nenhum lançamento futuro cadastrado.{'\n'}
+            Clique no botão + para adicionar recorrentes{'\n'}
+            ou cadastre receitas/despesas com datas futuras.
           </Text>
         ) : (
-          recurring.map((item) => (
-            <View key={item.id} style={[styles.recurringItem, { backgroundColor: theme.colors.surface }]}>
-              <View style={styles.recurringLeft}>
-                <Text style={[styles.recurringDescription, { color: theme.colors.text }]}>
-                  {item.description}
-                </Text>
-                <Text style={[styles.recurringInfo, { color: theme.colors.textSecondary }]}>
-                  Todo dia {item.dayOfMonth} • Desde {formatDate(item.startDate)}
-                </Text>
-              </View>
-              <View style={styles.recurringRight}>
-                <Text style={[
-                  styles.recurringAmount,
-                  { color: item.amount >= 0 ? theme.colors.success : theme.colors.error }
-                ]}>
-                  {formatCurrency(item.amount)}
-                </Text>
-                <TouchableOpacity
-                  onPress={() => handleDelete(item.id, item.description)}
-                  style={styles.deleteButton}
-                >
-                  <Text style={styles.deleteButtonText}>🗑️</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          ))
+          allFuture.map((item) => renderItem(item))
         )}
       </ScrollView>
 
@@ -279,6 +398,11 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontWeight: 'bold',
+    marginBottom: 5,
+  },
+  subtitle: {
+    fontSize: 14,
+    opacity: 0.9,
   },
   content: {
     flex: 1,
