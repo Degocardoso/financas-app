@@ -18,6 +18,7 @@ import ProjectionScreen from './src/screens/ProjectionScreen';
 
 // Screens - New Features
 import IncomesScreen from './src/screens/IncomesScreen';
+import ExpensesScreen from './src/screens/ExpensesScreen';
 import DailyBudgetScreen from './src/screens/DailyBudgetScreen';
 import DashboardScreen from './src/screens/DashboardScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
@@ -61,6 +62,11 @@ export default function App() {
                 name="Incomes"
                 component={IncomesScreen}
                 options={{ headerShown: true, title: 'Receitas' }}
+              />
+              <Stack.Screen
+                name="Expenses"
+                component={ExpensesScreen}
+                options={{ headerShown: false }}
               />
               <Stack.Screen
                 name="DailyBudget"

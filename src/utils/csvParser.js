@@ -36,12 +36,28 @@ export const parseCSV = (csvText) => {
  * Mapeia CSV do Nubank para formato do app
  * Formato: date, title, amount
  * Exemplo: 2025-10-26,Uber Uber *Trip Help.U,14.15
+ *
+ * IMPORTANTE: No extrato do Nubank, valores positivos são DESPESAS (compras)
+ * Apenas identificamos como receita se for pagamento recebido (ex: estorno, cashback)
  */
 const mapNubankCSV = (csvRow) => {
   try {
     const date = parseDate(csvRow['date']);
     const description = csvRow['title'] || 'Sem descrição';
-    const amount = parseAmount(csvRow['amount']);
+    let amount = parseAmount(csvRow['amount']);
+
+    // No Nubank, valores no extrato são despesas por padrão
+    // Tornamos negativos para indicar saída de dinheiro
+    // Exceções: pagamentos recebidos, estornos, cashback (contêm palavras-chave)
+    const isCredit = description.toLowerCase().includes('pagamento recebido') ||
+                     description.toLowerCase().includes('estorno') ||
+                     description.toLowerCase().includes('cashback') ||
+                     description.toLowerCase().includes('devolução');
+
+    // Se não for crédito, inverter o sinal (despesa)
+    if (!isCredit && amount > 0) {
+      amount = -amount;
+    }
 
     return {
       date: date,

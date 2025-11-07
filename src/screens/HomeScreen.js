@@ -127,6 +127,14 @@ export default function HomeScreen({ navigation }) {
 
         <TouchableOpacity
           style={[styles.menuButton, { backgroundColor: theme.colors.surface }]}
+          onPress={() => navigation.navigate('Expenses')}
+        >
+          <Text style={styles.menuIcon}>💳</Text>
+          <Text style={[styles.menuText, { color: theme.colors.text }]}>Despesas{'\n'}Gerais</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.menuButton, { backgroundColor: theme.colors.surface }]}
           onPress={() => navigation.navigate('DailyBudget')}
         >
           <Text style={styles.menuIcon}>📆</Text>
