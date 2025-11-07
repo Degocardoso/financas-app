@@ -11,8 +11,10 @@ import {
 import { generateProjection, getBreakEvenMonth } from '../services/projectionService';
 import { getCurrentBalance } from '../services/transactionService';
 import ProjectionChart from '../components/ProjectionChart';
+import { useTheme } from '../context/ThemeContext';
 
 export default function ProjectionScreen({ navigation }) {
+  const { theme } = useTheme();
   const [loading, setLoading] = useState(true);
   const [currentBalance, setCurrentBalance] = useState(0);
   const [projection, setProjection] = useState([]);
@@ -57,42 +59,63 @@ export default function ProjectionScreen({ navigation }) {
   };
 
   return (
-    <ScrollView style={styles.container}>
-      <View style={styles.header}>
+    <ScrollView style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      <View style={[styles.header, { backgroundColor: theme.colors.primary }]}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Text style={styles.backButton}>← Voltar</Text>
+          <Text style={[styles.backButton, { color: theme.colors.onPrimary }]}>← Voltar</Text>
         </TouchableOpacity>
-        <Text style={styles.title}>Projeção de Saldo</Text>
+        <Text style={[styles.title, { color: theme.colors.onPrimary }]}>Projeção de Saldo</Text>
       </View>
 
       {loading ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#3498db" />
-          <Text style={styles.loadingText}>Calculando projeção...</Text>
+          <ActivityIndicator size="large" color={theme.colors.primary} />
+          <Text style={[styles.loadingText, { color: theme.colors.textSecondary }]}>Calculando projeção...</Text>
         </View>
       ) : (
         <View style={styles.content}>
           {/* Card de Saldo Atual */}
-          <View style={[styles.balanceCard, currentBalance < 0 ? styles.negative : styles.positive]}>
-            <Text style={styles.balanceLabel}>Saldo Atual</Text>
-            <Text style={styles.balanceValue}>{formatCurrency(currentBalance)}</Text>
+          <View style={[
+            styles.balanceCard,
+            { backgroundColor: currentBalance < 0 ? theme.colors.error : theme.colors.success }
+          ]}>
+            <Text style={[styles.balanceLabel, { color: theme.colors.onPrimary }]}>Saldo Atual</Text>
+            <Text style={[styles.balanceValue, { color: theme.colors.onPrimary }]}>{formatCurrency(currentBalance)}</Text>
           </View>
 
           {/* Seletor de Período */}
           <View style={styles.periodSelector}>
-            <TouchableOpacity 
-              style={[styles.periodButton, months === 6 && styles.periodButtonActive]}
+            <TouchableOpacity
+              style={[
+                styles.periodButton,
+                {
+                  backgroundColor: months === 6 ? theme.colors.primary : theme.colors.surface,
+                  borderColor: theme.colors.primary
+                }
+              ]}
               onPress={() => setMonths(6)}
             >
-              <Text style={[styles.periodButtonText, months === 6 && styles.periodButtonTextActive]}>
+              <Text style={[
+                styles.periodButtonText,
+                { color: months === 6 ? theme.colors.onPrimary : theme.colors.primary }
+              ]}>
                 6 meses
               </Text>
             </TouchableOpacity>
-            <TouchableOpacity 
-              style={[styles.periodButton, months === 12 && styles.periodButtonActive]}
+            <TouchableOpacity
+              style={[
+                styles.periodButton,
+                {
+                  backgroundColor: months === 12 ? theme.colors.primary : theme.colors.surface,
+                  borderColor: theme.colors.primary
+                }
+              ]}
               onPress={() => setMonths(12)}
             >
-              <Text style={[styles.periodButtonText, months === 12 && styles.periodButtonTextActive]}>
+              <Text style={[
+                styles.periodButtonText,
+                { color: months === 12 ? theme.colors.onPrimary : theme.colors.primary }
+              ]}>
                 12 meses
               </Text>
             </TouchableOpacity>
@@ -100,59 +123,59 @@ export default function ProjectionScreen({ navigation }) {
 
           {/* Gráfico */}
           {projection.length > 0 && (
-            <View style={styles.chartCard}>
+            <View style={[styles.chartCard, { backgroundColor: theme.colors.surface }]}>
               <ProjectionChart projectionData={projection} />
             </View>
           )}
 
           {/* Card de Previsão Final */}
-          <View style={styles.predictionCard}>
-            <Text style={styles.predictionTitle}>
+          <View style={[styles.predictionCard, { backgroundColor: theme.colors.surface }]}>
+            <Text style={[styles.predictionTitle, { color: theme.colors.textSecondary }]}>
               Previsão para {projection.length > 0 ? projection[projection.length - 1].month : ''}
             </Text>
             <Text style={[
               styles.predictionValue,
-              getFinalBalance() < 0 ? styles.negativeText : styles.positiveText
+              { color: getFinalBalance() < 0 ? theme.colors.error : theme.colors.success }
             ]}>
               {formatCurrency(getFinalBalance())}
             </Text>
-            <Text style={styles.differenceText}>
-              {getBalanceDifference() >= 0 ? '↑' : '↓'} {formatCurrency(Math.abs(getBalanceDifference()))} 
+            <Text style={[styles.differenceText, { color: theme.colors.textSecondary }]}>
+              {getBalanceDifference() >= 0 ? '↑' : '↓'} {formatCurrency(Math.abs(getBalanceDifference()))}
               {' '}em relação ao saldo atual
             </Text>
           </View>
 
           {/* Card de Break-Even */}
           {breakEven && !breakEven.alreadyPositive && breakEven.month && (
-            <View style={styles.breakEvenCard}>
-              <Text style={styles.breakEvenTitle}>🎯 Meta de Saldo Positivo</Text>
-              <Text style={styles.breakEvenText}>
+            <View style={[styles.breakEvenCard, { backgroundColor: theme.colors.warningContainer }]}>
+              <Text style={[styles.breakEvenTitle, { color: theme.colors.text }]}>🎯 Meta de Saldo Positivo</Text>
+              <Text style={[styles.breakEvenText, { color: theme.colors.text }]}>
                 Seu saldo ficará positivo em {breakEven.month}
               </Text>
-              <Text style={styles.breakEvenSubtext}>
+              <Text style={[styles.breakEvenSubtext, { color: theme.colors.textSecondary }]}>
                 Faltam {breakEven.monthsUntil} {breakEven.monthsUntil === 1 ? 'mês' : 'meses'}!
               </Text>
             </View>
           )}
 
           {breakEven && breakEven.alreadyPositive && (
-            <View style={[styles.breakEvenCard, styles.positiveBreakEvenCard]}>
-              <Text style={styles.breakEvenTitle}>✅ Parabéns!</Text>
-              <Text style={styles.breakEvenText}>
+            <View style={[styles.breakEvenCard, { backgroundColor: theme.colors.successContainer }]}>
+              <Text style={[styles.breakEvenTitle, { color: theme.colors.text }]}>✅ Parabéns!</Text>
+              <Text style={[styles.breakEvenText, { color: theme.colors.text }]}>
                 Seu saldo já está positivo!
               </Text>
             </View>
           )}
 
           {/* Lista de Projeções */}
-          <View style={styles.listCard}>
-            <Text style={styles.listTitle}>Detalhamento Mensal</Text>
+          <View style={[styles.listCard, { backgroundColor: theme.colors.surface }]}>
+            <Text style={[styles.listTitle, { color: theme.colors.text }]}>Detalhamento Mensal</Text>
             {projection.map((item, index) => (
-              <View key={index} style={styles.listItem}>
-                <Text style={styles.listMonth}>{item.month}</Text>
+              <View key={index} style={[styles.listItem, { borderBottomColor: theme.colors.border }]}>
+                <Text style={[styles.listMonth, { color: theme.colors.text }]}>{item.month}</Text>
                 <Text style={[
                   styles.listBalance,
-                  item.balance < 0 ? styles.negativeText : styles.positiveText
+                  { color: item.balance < 0 ? theme.colors.error : theme.colors.success }
                 ]}>
                   {formatCurrency(item.balance)}
                 </Text>
@@ -168,22 +191,18 @@ export default function ProjectionScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
   },
   header: {
-    backgroundColor: '#3498db',
     padding: 20,
     paddingTop: 50,
   },
   backButton: {
-    color: 'white',
     fontSize: 16,
     marginBottom: 10,
   },
   title: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: 'white',
   },
   content: {
     padding: 20,
@@ -197,7 +216,6 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 15,
     fontSize: 16,
-    color: '#7f8c8d',
   },
   balanceCard: {
     padding: 20,
@@ -205,19 +223,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 20,
   },
-  positive: {
-    backgroundColor: '#27ae60',
-  },
-  negative: {
-    backgroundColor: '#e74c3c',
-  },
   balanceLabel: {
-    color: 'white',
     fontSize: 14,
     marginBottom: 5,
   },
   balanceValue: {
-    color: 'white',
     fontSize: 28,
     fontWeight: 'bold',
   },
@@ -231,29 +241,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     marginHorizontal: 5,
     borderRadius: 20,
-    backgroundColor: 'white',
     borderWidth: 2,
-    borderColor: '#3498db',
-  },
-  periodButtonActive: {
-    backgroundColor: '#3498db',
   },
   periodButtonText: {
-    color: '#3498db',
     fontSize: 16,
   },
-  periodButtonTextActive: {
-    color: 'white',
-  },
   chartCard: {
-    backgroundColor: 'white',
     borderRadius: 15,
     padding: 10,
     marginBottom: 20,
     elevation: 3,
   },
   predictionCard: {
-    backgroundColor: 'white',
     padding: 20,
     borderRadius: 15,
     alignItems: 'center',
@@ -262,7 +261,6 @@ const styles = StyleSheet.create({
   },
   predictionTitle: {
     fontSize: 16,
-    color: '#7f8c8d',
     marginBottom: 10,
   },
   predictionValue: {
@@ -270,42 +268,27 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginBottom: 10,
   },
-  positiveText: {
-    color: '#27ae60',
-  },
-  negativeText: {
-    color: '#e74c3c',
-  },
   differenceText: {
     fontSize: 14,
-    color: '#7f8c8d',
   },
   breakEvenCard: {
-    backgroundColor: '#fff3cd',
     padding: 20,
     borderRadius: 15,
     marginBottom: 20,
-  },
-  positiveBreakEvenCard: {
-    backgroundColor: '#d4edda',
   },
   breakEvenTitle: {
     fontSize: 18,
     fontWeight: 'bold',
     marginBottom: 10,
-    color: '#2c3e50',
   },
   breakEvenText: {
     fontSize: 16,
-    color: '#2c3e50',
     marginBottom: 5,
   },
   breakEvenSubtext: {
     fontSize: 14,
-    color: '#7f8c8d',
   },
   listCard: {
-    backgroundColor: 'white',
     padding: 20,
     borderRadius: 15,
     elevation: 3,
@@ -314,18 +297,15 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     marginBottom: 15,
-    color: '#2c3e50',
   },
   listItem: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#ecf0f1',
   },
   listMonth: {
     fontSize: 16,
-    color: '#2c3e50',
   },
   listBalance: {
     fontSize: 16,
