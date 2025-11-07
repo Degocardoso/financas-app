@@ -16,8 +16,10 @@ import {
   addRecurringTransaction,
   deleteRecurringTransaction
 } from '../services/transactionService';
+import { useTheme } from '../context/ThemeContext';
 
 export default function RecurringScreen({ navigation }) {
+  const { theme } = useTheme();
   const [recurring, setRecurring] = useState([]);
   const [modalVisible, setModalVisible] = useState(false);
   const [formData, setFormData] = useState({
@@ -114,46 +116,46 @@ export default function RecurringScreen({ navigation }) {
   };
 
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      <View style={[styles.header, { backgroundColor: theme.colors.primary }]}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Text style={styles.backButton}>← Voltar</Text>
+          <Text style={[styles.backButton, { color: theme.colors.onPrimary }]}>← Voltar</Text>
         </TouchableOpacity>
-        <Text style={styles.title}>Lançamentos Futuros</Text>
+        <Text style={[styles.title, { color: theme.colors.onPrimary }]}>Lançamentos Futuros</Text>
       </View>
 
       <ScrollView style={styles.content}>
-        <View style={styles.infoCard}>
-          <Text style={styles.infoText}>
-            Cadastre receitas e despesas recorrentes (salário, aluguel, etc.) 
+        <View style={[styles.infoCard, { backgroundColor: theme.colors.warningContainer }]}>
+          <Text style={[styles.infoText, { color: theme.colors.onWarningContainer }]}>
+            Cadastre receitas e despesas recorrentes (salário, aluguel, etc.)
             ou pontuais (IPVA, IPTU) para projetar seu saldo futuro.
           </Text>
         </View>
 
         {recurring.length === 0 ? (
-          <Text style={styles.emptyText}>
+          <Text style={[styles.emptyText, { color: theme.colors.textSecondary }]}>
             Nenhum lançamento cadastrado.{'\n'}
             Clique no botão + para adicionar.
           </Text>
         ) : (
           recurring.map((item) => (
-            <View key={item.id} style={styles.recurringItem}>
+            <View key={item.id} style={[styles.recurringItem, { backgroundColor: theme.colors.surface }]}>
               <View style={styles.recurringLeft}>
-                <Text style={styles.recurringDescription}>
+                <Text style={[styles.recurringDescription, { color: theme.colors.text }]}>
                   {item.description}
                 </Text>
-                <Text style={styles.recurringInfo}>
+                <Text style={[styles.recurringInfo, { color: theme.colors.textSecondary }]}>
                   Todo dia {item.dayOfMonth} • Desde {formatDate(item.startDate)}
                 </Text>
               </View>
               <View style={styles.recurringRight}>
                 <Text style={[
                   styles.recurringAmount,
-                  item.amount >= 0 ? styles.income : styles.expense
+                  { color: item.amount >= 0 ? theme.colors.success : theme.colors.error }
                 ]}>
                   {formatCurrency(item.amount)}
                 </Text>
-                <TouchableOpacity 
+                <TouchableOpacity
                   onPress={() => handleDelete(item.id, item.description)}
                   style={styles.deleteButton}
                 >
@@ -165,11 +167,11 @@ export default function RecurringScreen({ navigation }) {
         )}
       </ScrollView>
 
-      <TouchableOpacity 
-        style={styles.fab}
+      <TouchableOpacity
+        style={[styles.fab, { backgroundColor: theme.colors.primary }]}
         onPress={() => setModalVisible(true)}
       >
-        <Text style={styles.fabText}>+</Text>
+        <Text style={[styles.fabText, { color: theme.colors.onPrimary }]}>+</Text>
       </TouchableOpacity>
 
       <Modal
@@ -179,37 +181,51 @@ export default function RecurringScreen({ navigation }) {
         onRequestClose={() => setModalVisible(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Novo Lançamento Recorrente</Text>
+          <View style={[styles.modalContent, { backgroundColor: theme.colors.surface }]}>
+            <Text style={[styles.modalTitle, { color: theme.colors.text }]}>Novo Lançamento Recorrente</Text>
 
             <TextInput
-              style={styles.input}
+              style={[styles.input, {
+                backgroundColor: theme.colors.background,
+                color: theme.colors.text
+              }]}
               placeholder="Descrição (ex: Salário)"
+              placeholderTextColor={theme.colors.textTertiary}
               value={formData.description}
               onChangeText={(text) => setFormData({...formData, description: text})}
             />
 
             <TextInput
-              style={styles.input}
+              style={[styles.input, {
+                backgroundColor: theme.colors.background,
+                color: theme.colors.text
+              }]}
               placeholder="Valor (use - para despesas)"
+              placeholderTextColor={theme.colors.textTertiary}
               value={formData.amount}
               onChangeText={(text) => setFormData({...formData, amount: text})}
               keyboardType="numeric"
             />
 
             <TextInput
-              style={styles.input}
+              style={[styles.input, {
+                backgroundColor: theme.colors.background,
+                color: theme.colors.text
+              }]}
               placeholder="Dia do mês (1-31)"
+              placeholderTextColor={theme.colors.textTertiary}
               value={formData.dayOfMonth}
               onChangeText={(text) => setFormData({...formData, dayOfMonth: text})}
               keyboardType="numeric"
             />
 
-            <TouchableOpacity 
-              style={styles.dateButton}
+            <TouchableOpacity
+              style={[styles.dateButton, {
+                backgroundColor: theme.colors.background
+              }]}
               onPress={() => setShowDatePicker(true)}
             >
-              <Text>Data de início: {formatDate(formData.startDate)}</Text>
+              <Text style={{ color: theme.colors.text }}>Data de início: {formatDate(formData.startDate)}</Text>
             </TouchableOpacity>
 
             {showDatePicker && (
@@ -227,18 +243,18 @@ export default function RecurringScreen({ navigation }) {
             )}
 
             <View style={styles.modalButtons}>
-              <TouchableOpacity 
-                style={[styles.modalButton, styles.cancelButton]}
+              <TouchableOpacity
+                style={[styles.modalButton, { backgroundColor: theme.colors.disabled }]}
                 onPress={() => setModalVisible(false)}
               >
-                <Text style={styles.buttonText}>Cancelar</Text>
+                <Text style={[styles.buttonText, { color: theme.colors.onPrimary }]}>Cancelar</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity 
-                style={[styles.modalButton, styles.saveButton]}
+              <TouchableOpacity
+                style={[styles.modalButton, { backgroundColor: theme.colors.success }]}
                 onPress={handleAdd}
               >
-                <Text style={styles.buttonText}>Salvar</Text>
+                <Text style={[styles.buttonText, { color: theme.colors.onPrimary }]}>Salvar</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -251,46 +267,38 @@ export default function RecurringScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
   },
   header: {
-    backgroundColor: '#3498db',
     padding: 20,
     paddingTop: 50,
   },
   backButton: {
-    color: 'white',
     fontSize: 16,
     marginBottom: 10,
   },
   title: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: 'white',
   },
   content: {
     flex: 1,
     padding: 20,
   },
   infoCard: {
-    backgroundColor: '#fff3cd',
     padding: 15,
     borderRadius: 10,
     marginBottom: 20,
   },
   infoText: {
     fontSize: 14,
-    color: '#856404',
   },
   emptyText: {
     textAlign: 'center',
-    color: '#7f8c8d',
     fontSize: 16,
     marginTop: 40,
   },
   recurringItem: {
     flexDirection: 'row',
-    backgroundColor: 'white',
     padding: 15,
     borderRadius: 10,
     marginBottom: 10,
@@ -301,12 +309,10 @@ const styles = StyleSheet.create({
   },
   recurringDescription: {
     fontSize: 16,
-    color: '#2c3e50',
     marginBottom: 5,
   },
   recurringInfo: {
     fontSize: 12,
-    color: '#7f8c8d',
   },
   recurringRight: {
     alignItems: 'flex-end',
@@ -315,12 +321,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     marginBottom: 5,
-  },
-  income: {
-    color: '#27ae60',
-  },
-  expense: {
-    color: '#e74c3c',
   },
   deleteButton: {
     padding: 5,
@@ -332,7 +332,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: 20,
     bottom: 20,
-    backgroundColor: '#3498db',
     width: 60,
     height: 60,
     borderRadius: 30,
@@ -341,7 +340,6 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   fabText: {
-    color: 'white',
     fontSize: 30,
     fontWeight: 'bold',
   },
@@ -352,7 +350,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   modalContent: {
-    backgroundColor: 'white',
     borderRadius: 15,
     padding: 20,
     width: '90%',
@@ -362,17 +359,14 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: 'bold',
     marginBottom: 20,
-    color: '#2c3e50',
   },
   input: {
-    backgroundColor: '#f5f5f5',
     padding: 15,
     borderRadius: 10,
     marginBottom: 15,
     fontSize: 16,
   },
   dateButton: {
-    backgroundColor: '#f5f5f5',
     padding: 15,
     borderRadius: 10,
     marginBottom: 15,
@@ -388,14 +382,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginHorizontal: 5,
   },
-  cancelButton: {
-    backgroundColor: '#95a5a6',
-  },
-  saveButton: {
-    backgroundColor: '#27ae60',
-  },
   buttonText: {
-    color: 'white',
     fontSize: 16,
     fontWeight: 'bold',
   },

@@ -11,8 +11,10 @@ import {
   Platform
 } from 'react-native';
 import { registerWithEmail } from '../services/authService';
+import { useTheme } from '../context/ThemeContext';
 
 export default function RegisterScreen({ navigation }) {
+  const { theme } = useTheme();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -48,23 +50,33 @@ export default function RegisterScreen({ navigation }) {
   };
 
   return (
-    <KeyboardAvoidingView 
-      style={styles.container}
+    <KeyboardAvoidingView
+      style={[styles.container, { backgroundColor: theme.colors.background }]}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <View style={styles.content}>
-        <Text style={styles.title}>Criar Conta</Text>
+        <Text style={[styles.title, { color: theme.colors.text }]}>Criar Conta</Text>
 
         <TextInput
-          style={styles.input}
+          style={[styles.input, {
+            backgroundColor: theme.colors.surface,
+            color: theme.colors.text,
+            borderColor: theme.colors.border
+          }]}
           placeholder="Nome completo"
+          placeholderTextColor={theme.colors.textTertiary}
           value={name}
           onChangeText={setName}
         />
 
         <TextInput
-          style={styles.input}
+          style={[styles.input, {
+            backgroundColor: theme.colors.surface,
+            color: theme.colors.text,
+            borderColor: theme.colors.border
+          }]}
           placeholder="Email"
+          placeholderTextColor={theme.colors.textTertiary}
           value={email}
           onChangeText={setEmail}
           autoCapitalize="none"
@@ -72,36 +84,49 @@ export default function RegisterScreen({ navigation }) {
         />
 
         <TextInput
-          style={styles.input}
+          style={[styles.input, {
+            backgroundColor: theme.colors.surface,
+            color: theme.colors.text,
+            borderColor: theme.colors.border
+          }]}
           placeholder="Senha (mínimo 6 caracteres)"
+          placeholderTextColor={theme.colors.textTertiary}
           value={password}
           onChangeText={setPassword}
           secureTextEntry
         />
 
         <TextInput
-          style={styles.input}
+          style={[styles.input, {
+            backgroundColor: theme.colors.surface,
+            color: theme.colors.text,
+            borderColor: theme.colors.border
+          }]}
           placeholder="Confirme a senha"
+          placeholderTextColor={theme.colors.textTertiary}
           value={confirmPassword}
           onChangeText={setConfirmPassword}
           secureTextEntry
         />
 
-        <TouchableOpacity 
-          style={[styles.button, loading && styles.buttonDisabled]}
+        <TouchableOpacity
+          style={[
+            styles.button,
+            { backgroundColor: loading ? theme.colors.disabled : theme.colors.success }
+          ]}
           onPress={handleRegister}
           disabled={loading}
         >
-          <Text style={styles.buttonText}>
+          <Text style={[styles.buttonText, { color: theme.colors.onPrimary }]}>
             {loading ? 'Criando conta...' : 'Cadastrar'}
           </Text>
         </TouchableOpacity>
 
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.linkButton}
           onPress={() => navigation.goBack()}
         >
-          <Text style={styles.linkText}>
+          <Text style={[styles.linkText, { color: theme.colors.primary }]}>
             Já tem conta? Faça login
           </Text>
         </TouchableOpacity>
@@ -113,7 +138,6 @@ export default function RegisterScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
   },
   content: {
     flex: 1,
@@ -125,29 +149,21 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     textAlign: 'center',
     marginBottom: 40,
-    color: '#2c3e50',
   },
   input: {
-    backgroundColor: 'white',
     padding: 15,
     borderRadius: 10,
     marginBottom: 15,
     fontSize: 16,
     borderWidth: 1,
-    borderColor: '#ddd',
   },
   button: {
-    backgroundColor: '#27ae60',
     padding: 15,
     borderRadius: 10,
     alignItems: 'center',
     marginTop: 10,
   },
-  buttonDisabled: {
-    backgroundColor: '#95a5a6',
-  },
   buttonText: {
-    color: 'white',
     fontSize: 18,
     fontWeight: 'bold',
   },
@@ -156,7 +172,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   linkText: {
-    color: '#3498db',
     fontSize: 16,
   },
 });

@@ -7,20 +7,56 @@ import {
   StyleSheet,
   ScrollView,
   Alert,
-  ActivityIndicator
+  ActivityIndicator,
+  Platform
 } from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system';
+import * as MediaLibrary from 'expo-media-library';
+import { useTheme } from '../context/ThemeContext';
 import { parseCSV, mapCSVToTransaction, validateCSVStructure } from '../utils/csvParser';
 import { addTransaction, transactionExists } from '../services/transactionService';
 import { generateTransactionHash } from '../utils/deduplication';
 
 export default function ImportScreen({ navigation }) {
+  const { theme } = useTheme();
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState(null);
+  const [hasPermission, setHasPermission] = useState(null);
+
+  // Solicita permissões para acessar arquivos
+  const requestPermissions = async () => {
+    try {
+      if (Platform.OS === 'android') {
+        const { status } = await MediaLibrary.requestPermissionsAsync();
+        setHasPermission(status === 'granted');
+        return status === 'granted';
+      }
+      // iOS não precisa de permissão para DocumentPicker
+      setHasPermission(true);
+      return true;
+    } catch (error) {
+      console.error('Erro ao solicitar permissões:', error);
+      setHasPermission(false);
+      return false;
+    }
+  };
 
   const pickDocument = async () => {
     try {
+      // Verifica permissões antes de abrir o picker
+      if (hasPermission === null || hasPermission === false) {
+        const granted = await requestPermissions();
+        if (!granted) {
+          Alert.alert(
+            'Permissão Necessária',
+            'O aplicativo precisa de permissão para acessar seus arquivos.',
+            [{ text: 'OK' }]
+          );
+          return;
+        }
+      }
+
       const result = await DocumentPicker.getDocumentAsync({
         type: 'text/csv',
         copyToCacheDirectory: true
@@ -130,18 +166,18 @@ export default function ImportScreen({ navigation }) {
   };
 
   return (
-    <ScrollView style={styles.container}>
-      <View style={styles.header}>
+    <ScrollView style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      <View style={[styles.header, { backgroundColor: theme.colors.primary }]}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Text style={styles.backButton}>← Voltar</Text>
+          <Text style={[styles.backButton, { color: theme.colors.onPrimary }]}>← Voltar</Text>
         </TouchableOpacity>
-        <Text style={styles.title}>Importar Extrato</Text>
+        <Text style={[styles.title, { color: theme.colors.onPrimary }]}>Importar Extrato</Text>
       </View>
 
       <View style={styles.content}>
-        <View style={styles.instructionsCard}>
-          <Text style={styles.instructionsTitle}>📋 Como importar:</Text>
-          <Text style={styles.instructionsText}>
+        <View style={[styles.instructionsCard, { backgroundColor: theme.colors.surface }]}>
+          <Text style={[styles.instructionsTitle, { color: theme.colors.text }]}>📋 Como importar:</Text>
+          <Text style={[styles.instructionsText, { color: theme.colors.textSecondary }]}>
             1. Baixe o extrato do seu banco em formato CSV{'\n'}
             2. O arquivo deve conter as colunas: Data, Descrição e Valor{'\n'}
             3. Clique no botão abaixo para selecionar o arquivo{'\n'}
@@ -149,9 +185,9 @@ export default function ImportScreen({ navigation }) {
           </Text>
         </View>
 
-        <View style={styles.exampleCard}>
-          <Text style={styles.exampleTitle}>Exemplo de CSV válido:</Text>
-          <Text style={styles.exampleText}>
+        <View style={[styles.exampleCard, { backgroundColor: theme.colors.surfaceVariant }]}>
+          <Text style={[styles.exampleTitle, { color: theme.colors.text }]}>Exemplo de CSV válido:</Text>
+          <Text style={[styles.exampleText, { color: theme.colors.textSecondary }]}>
             Data,Descrição,Valor{'\n'}
             05/11/2025,Salário,5000.00{'\n'}
             03/11/2025,Supermercado,-250.50{'\n'}
@@ -161,32 +197,32 @@ export default function ImportScreen({ navigation }) {
 
         {importing ? (
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#3498db" />
-            <Text style={styles.loadingText}>Importando transações...</Text>
+            <ActivityIndicator size="large" color={theme.colors.primary} />
+            <Text style={[styles.loadingText, { color: theme.colors.textSecondary }]}>Importando transações...</Text>
           </View>
         ) : (
-          <TouchableOpacity 
-            style={styles.importButton}
+          <TouchableOpacity
+            style={[styles.importButton, { backgroundColor: theme.colors.primary }]}
             onPress={pickDocument}
           >
-            <Text style={styles.importButtonText}>📁 Selecionar Arquivo CSV</Text>
+            <Text style={[styles.importButtonText, { color: theme.colors.onPrimary }]}>📁 Selecionar Arquivo CSV</Text>
           </TouchableOpacity>
         )}
 
         {importResult && (
-          <View style={styles.resultCard}>
-            <Text style={styles.resultTitle}>Resultado da Importação:</Text>
-            <Text style={styles.resultText}>
+          <View style={[styles.resultCard, { backgroundColor: theme.colors.surface }]}>
+            <Text style={[styles.resultTitle, { color: theme.colors.text }]}>Resultado da Importação:</Text>
+            <Text style={[styles.resultText, { color: theme.colors.text }]}>
               Total de linhas: {importResult.total}
             </Text>
-            <Text style={[styles.resultText, styles.successText]}>
+            <Text style={[styles.resultText, { color: theme.colors.success }]}>
               ✓ Importadas: {importResult.imported}
             </Text>
-            <Text style={[styles.resultText, styles.warningText]}>
+            <Text style={[styles.resultText, { color: theme.colors.warning }]}>
               ⊗ Duplicadas: {importResult.duplicates}
             </Text>
             {importResult.errors > 0 && (
-              <Text style={[styles.resultText, styles.errorText]}>
+              <Text style={[styles.resultText, { color: theme.colors.error }]}>
                 ✗ Erros: {importResult.errors}
               </Text>
             )}
@@ -200,28 +236,23 @@ export default function ImportScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
   },
   header: {
-    backgroundColor: '#3498db',
     padding: 20,
     paddingTop: 50,
   },
   backButton: {
-    color: 'white',
     fontSize: 16,
     marginBottom: 10,
   },
   title: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: 'white',
   },
   content: {
     padding: 20,
   },
   instructionsCard: {
-    backgroundColor: 'white',
     padding: 20,
     borderRadius: 10,
     marginBottom: 20,
@@ -230,15 +261,12 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     marginBottom: 10,
-    color: '#2c3e50',
   },
   instructionsText: {
     fontSize: 14,
-    color: '#7f8c8d',
     lineHeight: 22,
   },
   exampleCard: {
-    backgroundColor: '#ecf0f1',
     padding: 15,
     borderRadius: 10,
     marginBottom: 20,
@@ -247,21 +275,17 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     marginBottom: 10,
-    color: '#2c3e50',
   },
   exampleText: {
     fontSize: 12,
     fontFamily: 'monospace',
-    color: '#34495e',
   },
   importButton: {
-    backgroundColor: '#3498db',
     padding: 20,
     borderRadius: 10,
     alignItems: 'center',
   },
   importButtonText: {
-    color: 'white',
     fontSize: 18,
     fontWeight: 'bold',
   },
@@ -272,10 +296,8 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 15,
     fontSize: 16,
-    color: '#7f8c8d',
   },
   resultCard: {
-    backgroundColor: 'white',
     padding: 20,
     borderRadius: 10,
     marginTop: 20,
@@ -284,20 +306,9 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     marginBottom: 15,
-    color: '#2c3e50',
   },
   resultText: {
     fontSize: 16,
     marginBottom: 8,
-    color: '#2c3e50',
-  },
-  successText: {
-    color: '#27ae60',
-  },
-  warningText: {
-    color: '#f39c12',
-  },
-  errorText: {
-    color: '#e74c3c',
   },
 });
