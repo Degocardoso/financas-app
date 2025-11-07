@@ -37,8 +37,14 @@ export const parseCSV = (csvText) => {
  * Formato: date, title, amount
  * Exemplo: 2025-10-26,Uber Uber *Trip Help.U,14.15
  *
- * IMPORTANTE: No extrato do Nubank, valores positivos são DESPESAS (compras)
- * Apenas identificamos como receita se for pagamento recebido (ex: estorno, cashback)
+ * LÓGICA DE VALORES NO NUBANK:
+ * - Valores POSITIVOS = Compras/Despesas (ex: 14.15)
+ * - Valores NEGATIVOS = Pagamentos de fatura/dívida (ex: -2200)
+ *
+ * IMPORTANTE:
+ * - Valores negativos são IGNORADOS (são pagamentos de fatura, já contabilizados)
+ * - Valores positivos são invertidos para negativos (são despesas reais)
+ * - Exceções: estornos, cashback, devolução (permanecem positivos como receitas)
  */
 const mapNubankCSV = (csvRow) => {
   try {
@@ -46,15 +52,20 @@ const mapNubankCSV = (csvRow) => {
     const description = csvRow['title'] || 'Sem descrição';
     let amount = parseAmount(csvRow['amount']);
 
-    // No Nubank, valores no extrato são despesas por padrão
-    // Tornamos negativos para indicar saída de dinheiro
-    // Exceções: pagamentos recebidos, estornos, cashback (contêm palavras-chave)
+    // IGNORAR valores negativos do Nubank (pagamentos de fatura/dívida)
+    // Esses valores já foram contabilizados como despesas individuais anteriormente
+    if (amount < 0) {
+      console.log(`Ignorando pagamento de fatura/dívida: ${description} (${amount})`);
+      return null;
+    }
+
+    // Identificar créditos especiais (estornos, cashback, devoluções)
     const isCredit = description.toLowerCase().includes('pagamento recebido') ||
                      description.toLowerCase().includes('estorno') ||
                      description.toLowerCase().includes('cashback') ||
                      description.toLowerCase().includes('devolução');
 
-    // Se não for crédito, inverter o sinal (despesa)
+    // Se não for crédito especial, inverter o sinal (despesa)
     if (!isCredit && amount > 0) {
       amount = -amount;
     }
