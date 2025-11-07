@@ -26,8 +26,9 @@ export default function ImportScreen({ navigation }) {
     try {
       // DocumentPicker usa Storage Access Framework (SAF) no Android
       // Não precisa de permissões explícitas - o sistema gerencia
+      // Aceita múltiplos MIME types para melhor compatibilidade
       const result = await DocumentPicker.getDocumentAsync({
-        type: 'text/csv',
+        type: ['text/csv', 'text/comma-separated-values', 'application/csv', 'text/plain', '*/*'],
         copyToCacheDirectory: true,
         multiple: false
       });

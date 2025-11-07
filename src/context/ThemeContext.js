@@ -136,4 +136,7 @@ export const useTheme = () => {
   return context;
 };
 
+// Re-exportar THEME_MODES para conveniência
+export { THEME_MODES } from '../config/themes';
+
 export default ThemeContext;
