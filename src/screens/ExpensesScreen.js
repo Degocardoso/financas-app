@@ -11,46 +11,110 @@ import {
 } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
 import { getTransactions, deleteTransaction } from '../services/transactionService';
+import { getIncomes, deleteIncome } from '../services/incomeService';
+import { getDailyExpenses, deleteDailyExpense } from '../services/dailyBudgetService';
 
 export default function ExpensesScreen({ navigation }) {
   const { theme } = useTheme();
-  const [transactions, setTransactions] = useState([]);
+  const [allItems, setAllItems] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
   const [filter, setFilter] = useState('all'); // 'all', 'income', 'expense'
 
   useEffect(() => {
-    loadTransactions();
+    loadAllData();
   }, []);
 
-  const loadTransactions = async () => {
-    const result = await getTransactions();
-    if (result.success) {
-      setTransactions(result.transactions);
+  const loadAllData = async () => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const consolidated = [];
+
+    // 1. Buscar transactions (importadas do CSV)
+    const transactionsResult = await getTransactions();
+    if (transactionsResult.success) {
+      transactionsResult.transactions.forEach(t => {
+        consolidated.push({
+          ...t,
+          sourceType: 'transaction',
+          displayDate: t.date ? (t.date.toDate ? t.date.toDate() : new Date(t.date)) : new Date()
+        });
+      });
     }
+
+    // 2. Buscar receitas únicas (NÃO futuras - só passado e presente)
+    const incomesResult = await getIncomes();
+    if (incomesResult.success) {
+      incomesResult.incomes.forEach(income => {
+        if (income.incomeType === 'single' && income.date) {
+          const incomeDate = income.date.toDate();
+          incomeDate.setHours(0, 0, 0, 0);
+
+          // Incluir apenas se não for futura
+          if (incomeDate <= today) {
+            consolidated.push({
+              ...income,
+              sourceType: 'income',
+              displayDate: incomeDate,
+              type: 'income' // Garantir que é receita
+            });
+          }
+        }
+      });
+    }
+
+    // 3. Buscar despesas diárias
+    const dailyExpensesResult = await getDailyExpenses();
+    if (dailyExpensesResult.success) {
+      dailyExpensesResult.expenses.forEach(expense => {
+        consolidated.push({
+          ...expense,
+          sourceType: 'dailyExpense',
+          displayDate: expense.date ? (expense.date.toDate ? expense.date.toDate() : new Date(expense.date)) : new Date(),
+          type: 'expense' // Garantir que é despesa
+        });
+      });
+    }
+
+    // Ordenar por data (mais recente primeiro)
+    consolidated.sort((a, b) => b.displayDate - a.displayDate);
+
+    setAllItems(consolidated);
   };
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await loadTransactions();
+    await loadAllData();
     setRefreshing(false);
   };
 
-  const handleDelete = (transaction) => {
+  const handleDelete = (item) => {
+    const description = item.description || item.title || 'este item';
     Alert.alert(
       'Confirmar Exclusão',
-      `Deseja realmente excluir "${transaction.description}"?`,
+      `Deseja realmente excluir "${description}"?`,
       [
         { text: 'Cancelar', style: 'cancel' },
         {
           text: 'Excluir',
           style: 'destructive',
           onPress: async () => {
-            const result = await deleteTransaction(transaction.id);
-            if (result.success) {
-              Alert.alert('Sucesso', 'Transação excluída com sucesso!');
-              loadTransactions();
+            let result;
+
+            // Detectar origem e chamar service correto
+            if (item.sourceType === 'transaction') {
+              result = await deleteTransaction(item.id);
+            } else if (item.sourceType === 'income') {
+              result = await deleteIncome(item.id);
+            } else if (item.sourceType === 'dailyExpense') {
+              result = await deleteDailyExpense(item.id);
+            }
+
+            if (result && result.success) {
+              Alert.alert('Sucesso', 'Item excluído com sucesso!');
+              loadAllData();
             } else {
-              Alert.alert('Erro', result.error || 'Erro ao excluir transação');
+              Alert.alert('Erro', result?.error || 'Erro ao excluir item');
             }
           }
         }
@@ -81,22 +145,22 @@ export default function ExpensesScreen({ navigation }) {
     return dateObj.toLocaleDateString('pt-BR');
   };
 
-  // Filtrar transações
-  const filteredTransactions = transactions.filter(transaction => {
+  // Filtrar itens
+  const filteredItems = allItems.filter(item => {
     if (filter === 'all') return true;
-    if (filter === 'income') return transaction.type === 'income';
-    if (filter === 'expense') return transaction.type === 'expense';
+    if (filter === 'income') return item.type === 'income' || item.amount >= 0;
+    if (filter === 'expense') return item.type === 'expense' || item.amount < 0;
     return true;
   });
 
   // Calcular totais
-  const totalIncome = transactions
-    .filter(t => t.type === 'income')
-    .reduce((sum, t) => sum + t.amount, 0);
+  const totalIncome = allItems
+    .filter(item => item.type === 'income' || item.amount >= 0)
+    .reduce((sum, item) => sum + Math.abs(item.amount), 0);
 
-  const totalExpense = transactions
-    .filter(t => t.type === 'expense')
-    .reduce((sum, t) => sum + Math.abs(t.amount), 0);
+  const totalExpense = allItems
+    .filter(item => item.type === 'expense' || item.amount < 0)
+    .reduce((sum, item) => sum + Math.abs(item.amount), 0);
 
   return (
     <ScrollView
@@ -186,60 +250,75 @@ export default function ExpensesScreen({ navigation }) {
         </TouchableOpacity>
       </View>
 
-      {/* Lista de transações */}
+      {/* Lista consolidada */}
       <View style={styles.listContainer}>
-        {filteredTransactions.length === 0 ? (
+        {filteredItems.length === 0 ? (
           <View style={[styles.emptyContainer, { backgroundColor: theme.colors.surface }]}>
             <Text style={[styles.emptyText, { color: theme.colors.textSecondary }]}>
-              Nenhuma transação encontrada
+              Nenhum item encontrado
             </Text>
             <Text style={[styles.emptySubtext, { color: theme.colors.textTertiary }]}>
-              Importe um extrato CSV para começar
+              Cadastre receitas/despesas ou importe CSV
             </Text>
           </View>
         ) : (
-          filteredTransactions.map((transaction) => (
-            <View
-              key={transaction.id}
-              style={[styles.transactionCard, { backgroundColor: theme.colors.surface }]}
-            >
-              <View style={styles.transactionInfo}>
-                <Text style={[styles.transactionDate, { color: theme.colors.textSecondary }]}>
-                  {formatDate(transaction.date)}
-                </Text>
-                <Text style={[styles.transactionDescription, { color: theme.colors.text }]}>
-                  {transaction.description}
-                </Text>
-                <Text
-                  style={[
-                    styles.transactionAmount,
-                    {
-                      color: transaction.type === 'income'
-                        ? theme.colors.success
-                        : theme.colors.error
-                    }
-                  ]}
-                >
-                  {transaction.type === 'income' ? '+' : '-'}
-                  {formatCurrency(Math.abs(transaction.amount))}
-                </Text>
-                {transaction.source && (
-                  <Text style={[styles.transactionSource, { color: theme.colors.textTertiary }]}>
-                    Origem: {transaction.source}
-                  </Text>
-                )}
-              </View>
+          filteredItems.map((item) => {
+            // Determinar ícone e label baseado na origem
+            let originIcon = '';
+            let originLabel = '';
 
-              <TouchableOpacity
-                style={[styles.deleteButton, { backgroundColor: theme.colors.error }]}
-                onPress={() => handleDelete(transaction)}
+            if (item.sourceType === 'transaction') {
+              originIcon = '💳';
+              originLabel = item.source || 'Importado';
+            } else if (item.sourceType === 'income') {
+              originIcon = '💰';
+              originLabel = 'Receita cadastrada';
+            } else if (item.sourceType === 'dailyExpense') {
+              originIcon = '📆';
+              originLabel = 'Despesa diária';
+            }
+
+            return (
+              <View
+                key={`${item.sourceType}-${item.id}`}
+                style={[styles.transactionCard, { backgroundColor: theme.colors.surface }]}
               >
-                <Text style={[styles.deleteButtonText, { color: theme.colors.onError }]}>
-                  🗑️
-                </Text>
-              </TouchableOpacity>
-            </View>
-          ))
+                <View style={styles.transactionInfo}>
+                  <Text style={[styles.transactionDate, { color: theme.colors.textSecondary }]}>
+                    {formatDate(item.displayDate || item.date)}
+                  </Text>
+                  <Text style={[styles.transactionDescription, { color: theme.colors.text }]}>
+                    {item.description || item.title || 'Sem descrição'}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.transactionAmount,
+                      {
+                        color: (item.type === 'income' || item.amount >= 0)
+                          ? theme.colors.success
+                          : theme.colors.error
+                      }
+                    ]}
+                  >
+                    {(item.type === 'income' || item.amount >= 0) ? '+' : '-'}
+                    {formatCurrency(Math.abs(item.amount))}
+                  </Text>
+                  <Text style={[styles.transactionSource, { color: theme.colors.textTertiary }]}>
+                    {originIcon} {originLabel}
+                  </Text>
+                </View>
+
+                <TouchableOpacity
+                  style={[styles.deleteButton, { backgroundColor: theme.colors.error }]}
+                  onPress={() => handleDelete(item)}
+                >
+                  <Text style={[styles.deleteButtonText, { color: theme.colors.onError }]}>
+                    🗑️
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            );
+          })
         )}
       </View>
     </ScrollView>
