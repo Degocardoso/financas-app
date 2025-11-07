@@ -12,7 +12,6 @@ import {
 } from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system';
-import * as MediaLibrary from 'expo-media-library';
 import { useTheme } from '../context/ThemeContext';
 import { parseCSV, mapCSVToTransaction, validateCSVStructure } from '../utils/csvParser';
 import { addTransaction, transactionExists } from '../services/transactionService';
@@ -22,50 +21,27 @@ export default function ImportScreen({ navigation }) {
   const { theme } = useTheme();
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState(null);
-  const [hasPermission, setHasPermission] = useState(null);
-
-  // Solicita permissões para acessar arquivos
-  const requestPermissions = async () => {
-    try {
-      if (Platform.OS === 'android') {
-        const { status } = await MediaLibrary.requestPermissionsAsync();
-        setHasPermission(status === 'granted');
-        return status === 'granted';
-      }
-      // iOS não precisa de permissão para DocumentPicker
-      setHasPermission(true);
-      return true;
-    } catch (error) {
-      console.error('Erro ao solicitar permissões:', error);
-      setHasPermission(false);
-      return false;
-    }
-  };
 
   const pickDocument = async () => {
     try {
-      // Verifica permissões antes de abrir o picker
-      if (hasPermission === null || hasPermission === false) {
-        const granted = await requestPermissions();
-        if (!granted) {
-          Alert.alert(
-            'Permissão Necessária',
-            'O aplicativo precisa de permissão para acessar seus arquivos.',
-            [{ text: 'OK' }]
-          );
-          return;
-        }
-      }
-
+      // DocumentPicker usa Storage Access Framework (SAF) no Android
+      // Não precisa de permissões explícitas - o sistema gerencia
       const result = await DocumentPicker.getDocumentAsync({
         type: 'text/csv',
-        copyToCacheDirectory: true
+        copyToCacheDirectory: true,
+        multiple: false
       });
 
-      if (result.type === 'success' || result.assets?.[0]) {
-        // Expo SDK 50+ usa result.assets[0]
-        const file = result.assets ? result.assets[0] : result;
-        await processCSV(file.uri);
+      // Expo SDK 50+ retorna canceled: true em vez de type: 'cancel'
+      if (result.canceled) {
+        return; // Usuário cancelou
+      }
+
+      if (result.assets && result.assets[0]) {
+        await processCSV(result.assets[0].uri);
+      } else if (result.uri) {
+        // Fallback para versões antigas do Expo
+        await processCSV(result.uri);
       }
     } catch (error) {
       Alert.alert('Erro', 'Erro ao selecionar arquivo: ' + error.message);

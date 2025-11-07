@@ -11,8 +11,10 @@ import {
 } from 'react-native';
 import { logout } from '../services/authService';
 import { getCurrentBalance, getTransactions } from '../services/transactionService';
+import { useTheme, THEME_MODES } from '../context/ThemeContext';
 
 export default function HomeScreen({ navigation }) {
+  const { theme, themeMode, setThemeMode, isDark } = useTheme();
   const [balance, setBalance] = useState(0);
   const [transactions, setTransactions] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
@@ -22,6 +24,7 @@ export default function HomeScreen({ navigation }) {
   }, []);
 
   const loadData = async () => {
+    // getCurrentBalance agora retorna saldo UNIFICADO de todas as fontes
     const currentBalance = await getCurrentBalance();
     setBalance(currentBalance);
 
@@ -53,6 +56,11 @@ export default function HomeScreen({ navigation }) {
     );
   };
 
+  const toggleTheme = () => {
+    // Alterna entre claro e escuro (pula o sistema por simplicidade)
+    setThemeMode(isDark ? THEME_MODES.LIGHT : THEME_MODES.DARK);
+  };
+
   const formatCurrency = (value) => {
     return new Intl.NumberFormat('pt-BR', {
       style: 'currency',
@@ -67,110 +75,132 @@ export default function HomeScreen({ navigation }) {
   };
 
   return (
-    <ScrollView 
-      style={styles.container}
+    <ScrollView
+      style={[styles.container, { backgroundColor: theme.colors.background }]}
       refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+          tintColor={theme.colors.primary}
+        />
       }
     >
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Finanças App</Text>
-        <TouchableOpacity onPress={handleLogout}>
-          <Text style={styles.logoutText}>Sair</Text>
-        </TouchableOpacity>
+      <View style={[styles.header, { backgroundColor: theme.colors.primary }]}>
+        <Text style={[styles.headerTitle, { color: theme.colors.onPrimary }]}>Finanças App</Text>
+        <View style={styles.headerButtons}>
+          {/* Botão de alternar tema */}
+          <TouchableOpacity
+            onPress={toggleTheme}
+            style={styles.themeButton}
+          >
+            <Text style={styles.themeButtonText}>
+              {isDark ? '☀️' : '🌙'}
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity onPress={handleLogout}>
+            <Text style={[styles.logoutText, { color: theme.colors.onPrimary }]}>Sair</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
-      <View style={[styles.balanceCard, balance < 0 ? styles.negativeBalance : styles.positiveBalance]}>
-        <Text style={styles.balanceLabel}>Saldo Atual</Text>
-        <Text style={styles.balanceValue}>{formatCurrency(balance)}</Text>
+      <View style={[
+        styles.balanceCard,
+        { backgroundColor: balance < 0 ? theme.colors.error : theme.colors.success }
+      ]}>
+        <Text style={[styles.balanceLabel, { color: theme.colors.onPrimary }]}>Saldo Atual</Text>
+        <Text style={[styles.balanceValue, { color: theme.colors.onPrimary }]}>{formatCurrency(balance)}</Text>
+        <Text style={[styles.balanceHint, { color: theme.colors.onPrimary }]}>
+          (inclui transações, receitas e despesas)
+        </Text>
       </View>
 
       {/* Novos Recursos */}
       <View style={styles.menuGrid}>
         <TouchableOpacity
-          style={styles.menuButton}
+          style={[styles.menuButton, { backgroundColor: theme.colors.surface }]}
           onPress={() => navigation.navigate('Incomes')}
         >
           <Text style={styles.menuIcon}>💰</Text>
-          <Text style={styles.menuText}>Receitas</Text>
+          <Text style={[styles.menuText, { color: theme.colors.text }]}>Receitas</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={styles.menuButton}
+          style={[styles.menuButton, { backgroundColor: theme.colors.surface }]}
           onPress={() => navigation.navigate('DailyBudget')}
         >
           <Text style={styles.menuIcon}>📆</Text>
-          <Text style={styles.menuText}>Despesas{'\n'}Diárias</Text>
+          <Text style={[styles.menuText, { color: theme.colors.text }]}>Despesas{'\n'}Diárias</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={styles.menuButton}
+          style={[styles.menuButton, { backgroundColor: theme.colors.surface }]}
           onPress={() => navigation.navigate('Dashboard')}
         >
           <Text style={styles.menuIcon}>📈</Text>
-          <Text style={styles.menuText}>Dashboard</Text>
+          <Text style={[styles.menuText, { color: theme.colors.text }]}>Dashboard</Text>
         </TouchableOpacity>
       </View>
 
       {/* Recursos Originais */}
       <View style={styles.menuGrid}>
         <TouchableOpacity
-          style={styles.menuButton}
+          style={[styles.menuButton, { backgroundColor: theme.colors.surface }]}
           onPress={() => navigation.navigate('Import')}
         >
           <Text style={styles.menuIcon}>📥</Text>
-          <Text style={styles.menuText}>Importar{'\n'}Extrato</Text>
+          <Text style={[styles.menuText, { color: theme.colors.text }]}>Importar{'\n'}Extrato</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={styles.menuButton}
+          style={[styles.menuButton, { backgroundColor: theme.colors.surface }]}
           onPress={() => navigation.navigate('Recurring')}
         >
           <Text style={styles.menuIcon}>🔄</Text>
-          <Text style={styles.menuText}>Lançamentos{'\n'}Futuros</Text>
+          <Text style={[styles.menuText, { color: theme.colors.text }]}>Lançamentos{'\n'}Futuros</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={styles.menuButton}
+          style={[styles.menuButton, { backgroundColor: theme.colors.surface }]}
           onPress={() => navigation.navigate('Projection')}
         >
           <Text style={styles.menuIcon}>📊</Text>
-          <Text style={styles.menuText}>Projeção de{'\n'}Saldo</Text>
+          <Text style={[styles.menuText, { color: theme.colors.text }]}>Projeção de{'\n'}Saldo</Text>
         </TouchableOpacity>
       </View>
 
       {/* Configurações */}
       <View style={styles.settingsSection}>
         <TouchableOpacity
-          style={styles.settingsButton}
+          style={[styles.settingsButton, { backgroundColor: theme.colors.surface }]}
           onPress={() => navigation.navigate('Settings')}
         >
           <Text style={styles.settingsIcon}>⚙️</Text>
-          <Text style={styles.settingsText}>Configurações</Text>
+          <Text style={[styles.settingsText, { color: theme.colors.text }]}>Configurações</Text>
         </TouchableOpacity>
       </View>
 
       <View style={styles.transactionsSection}>
-        <Text style={styles.sectionTitle}>Últimas Transações</Text>
+        <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Últimas Transações</Text>
         {transactions.length === 0 ? (
-          <Text style={styles.emptyText}>
+          <Text style={[styles.emptyText, { color: theme.colors.textSecondary }]}>
             Nenhuma transação encontrada.{'\n'}
             Importe um extrato para começar!
           </Text>
         ) : (
           transactions.map((transaction, index) => (
-            <View key={index} style={styles.transactionItem}>
+            <View key={index} style={[styles.transactionItem, { backgroundColor: theme.colors.surface }]}>
               <View style={styles.transactionLeft}>
-                <Text style={styles.transactionDescription}>
+                <Text style={[styles.transactionDescription, { color: theme.colors.text }]}>
                   {transaction.description}
                 </Text>
-                <Text style={styles.transactionDate}>
+                <Text style={[styles.transactionDate, { color: theme.colors.textSecondary }]}>
                   {formatDate(transaction.date)}
                 </Text>
               </View>
               <Text style={[
                 styles.transactionAmount,
-                transaction.amount >= 0 ? styles.income : styles.expense
+                { color: transaction.amount >= 0 ? theme.colors.success : theme.colors.error }
               ]}>
                 {formatCurrency(transaction.amount)}
               </Text>
@@ -185,23 +215,30 @@ export default function HomeScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: 20,
-    backgroundColor: '#3498db',
     paddingTop: 50,
   },
   headerTitle: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: 'white',
+  },
+  headerButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 15,
+  },
+  themeButton: {
+    padding: 5,
+  },
+  themeButtonText: {
+    fontSize: 24,
   },
   logoutText: {
-    color: 'white',
     fontSize: 16,
   },
   balanceCard: {
@@ -210,21 +247,18 @@ const styles = StyleSheet.create({
     borderRadius: 15,
     alignItems: 'center',
   },
-  positiveBalance: {
-    backgroundColor: '#27ae60',
-  },
-  negativeBalance: {
-    backgroundColor: '#e74c3c',
-  },
   balanceLabel: {
-    color: 'white',
     fontSize: 16,
     marginBottom: 10,
   },
   balanceValue: {
-    color: 'white',
     fontSize: 36,
     fontWeight: 'bold',
+  },
+  balanceHint: {
+    fontSize: 12,
+    marginTop: 8,
+    opacity: 0.8,
   },
   menuGrid: {
     flexDirection: 'row',
@@ -232,7 +266,6 @@ const styles = StyleSheet.create({
     padding: 10,
   },
   menuButton: {
-    backgroundColor: 'white',
     padding: 20,
     borderRadius: 15,
     alignItems: 'center',
@@ -250,7 +283,6 @@ const styles = StyleSheet.create({
   menuText: {
     fontSize: 12,
     textAlign: 'center',
-    color: '#2c3e50',
   },
   transactionsSection: {
     margin: 20,
@@ -259,12 +291,10 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: 'bold',
     marginBottom: 15,
-    color: '#2c3e50',
   },
   transactionItem: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    backgroundColor: 'white',
     padding: 15,
     borderRadius: 10,
     marginBottom: 10,
@@ -279,26 +309,17 @@ const styles = StyleSheet.create({
   },
   transactionDescription: {
     fontSize: 16,
-    color: '#2c3e50',
     marginBottom: 5,
   },
   transactionDate: {
     fontSize: 12,
-    color: '#7f8c8d',
   },
   transactionAmount: {
     fontSize: 16,
     fontWeight: 'bold',
   },
-  income: {
-    color: '#27ae60',
-  },
-  expense: {
-    color: '#e74c3c',
-  },
   emptyText: {
     textAlign: 'center',
-    color: '#7f8c8d',
     fontSize: 16,
     marginTop: 20,
   },
@@ -307,7 +328,6 @@ const styles = StyleSheet.create({
     paddingTop: 10,
   },
   settingsButton: {
-    backgroundColor: 'white',
     padding: 20,
     borderRadius: 15,
     flexDirection: 'row',
@@ -325,7 +345,6 @@ const styles = StyleSheet.create({
   },
   settingsText: {
     fontSize: 16,
-    color: '#2c3e50',
     fontWeight: '600',
   },
 });

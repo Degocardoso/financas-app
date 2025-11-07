@@ -3,6 +3,7 @@ import { getIncomes } from './incomeService';
 import { getTransactions } from './transactionService';
 import { getRecurringTransactions } from './transactionService';
 import { getDailyExpenses, getDailyBudgets } from './dailyBudgetService';
+import { getUnifiedBalance } from './balanceService';
 
 // ========================================
 // FUNÇÕES AUXILIARES
@@ -172,16 +173,13 @@ export const getMonthlyForecast = async (year, month) => {
  */
 export const getDailyCashFlowProjection = async (months = 6) => {
   try {
-    // Buscar saldo atual
-    const transactionsResult = await getTransactions();
-    if (!transactionsResult.success) {
-      return { success: false, error: transactionsResult.error };
+    // Buscar saldo atual UNIFICADO (todas as fontes)
+    const balanceResult = await getUnifiedBalance();
+    if (!balanceResult.success) {
+      return { success: false, error: balanceResult.error };
     }
 
-    let currentBalance = 0;
-    transactionsResult.transactions.forEach(transaction => {
-      currentBalance += transaction.amount;
-    });
+    let currentBalance = balanceResult.balance;
 
     // Buscar receitas
     const incomesResult = await getIncomes();
@@ -323,16 +321,19 @@ export const getDailyCashFlowProjection = async (months = 6) => {
  */
 export const getDashboardStats = async () => {
   try {
-    // Saldo atual
-    const transactionsResult = await getTransactions();
-    if (!transactionsResult.success) {
-      return { success: false, error: transactionsResult.error };
+    // Saldo atual UNIFICADO
+    const balanceResult = await getUnifiedBalance();
+    if (!balanceResult.success) {
+      return { success: false, error: balanceResult.error };
     }
 
-    let currentBalance = 0;
-    transactionsResult.transactions.forEach(transaction => {
-      currentBalance += transaction.amount;
-    });
+    const currentBalance = balanceResult.balance;
+
+    // Total de transações
+    const transactionsResult = await getTransactions();
+    const totalTransactions = transactionsResult.success
+      ? transactionsResult.transactions.length
+      : 0;
 
     // Total de receitas
     const incomesResult = await getIncomes();
