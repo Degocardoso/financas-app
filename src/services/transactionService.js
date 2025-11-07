@@ -240,15 +240,36 @@ export const transactionExists = async (importHash) => {
   try {
     const userId = auth.currentUser?.uid;
     if (!userId) throw new Error('Usuário não autenticado');
-    
+
     const transactionsRef = collection(db, `users/${userId}/transactions`);
     const q = query(transactionsRef, where('importHash', '==', importHash));
-    
+
     const snapshot = await getDocs(q);
     return !snapshot.empty;
   } catch (error) {
     console.error('Erro ao verificar duplicata:', error);
     return false;
+  }
+};
+
+/**
+ * Deleta uma transação específica
+ * @param {string} transactionId - ID da transação a deletar
+ * @returns {Promise<{success: boolean, error?: string}>}
+ */
+export const deleteTransaction = async (transactionId) => {
+  try {
+    const userId = auth.currentUser?.uid;
+    if (!userId) throw new Error('Usuário não autenticado');
+
+    if (!transactionId) throw new Error('ID da transação é obrigatório');
+
+    await deleteDoc(doc(db, `users/${userId}/transactions`, transactionId));
+
+    return { success: true };
+  } catch (error) {
+    console.error('Erro ao deletar transação:', error);
+    return { success: false, error: error.message };
   }
 };
 
