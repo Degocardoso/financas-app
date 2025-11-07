@@ -142,6 +142,17 @@ export const getMonthlyForecast = async (year, month) => {
       }
     });
 
+    // Despesas diárias do mês
+    const dailyExpensesResult = await getDailyExpenses();
+    if (dailyExpensesResult.success) {
+      dailyExpensesResult.expenses.forEach(expense => {
+        const expenseDate = expense.date.toDate();
+        if (expenseDate >= firstDay && expenseDate <= lastDay) {
+          totalExpenses += Math.abs(expense.amount); // Valores são negativos, pegar absoluto
+        }
+      });
+    }
+
     // Calcular saldo previsto
     const balance = totalIncome - totalExpenses;
 
@@ -267,7 +278,8 @@ export const getDailyCashFlowProjection = async (months = 6) => {
       });
 
       if (dailyExpenseForDate) {
-        dailyExpense += dailyExpenseForDate.amount;
+        // Valor é negativo no banco, pegar absoluto para soma de despesas
+        dailyExpense += Math.abs(dailyExpenseForDate.amount);
       } else {
         // Se não houver gasto real, usar orçamento diário se existir
         const activeBudget = budgets.find(budget => {
@@ -281,6 +293,7 @@ export const getDailyCashFlowProjection = async (months = 6) => {
         });
 
         if (activeBudget) {
+          // Orçamento é positivo, somar diretamente
           dailyExpense += activeBudget.amount;
         }
       }
@@ -353,7 +366,8 @@ export const getDashboardStats = async () => {
       dailyExpensesResult.expenses.forEach(expense => {
         const expenseDate = expense.date.toDate();
         if (expenseDate >= firstDayOfMonth) {
-          monthlyDailyExpenses += expense.amount;
+          // Valores são negativos, pegar absoluto para mostrar total gasto
+          monthlyDailyExpenses += Math.abs(expense.amount);
         }
       });
     }
@@ -418,7 +432,8 @@ export const getMonthlyDailyBudgetSummary = async () => {
           const expenseDate = expense.date.toDate();
           expenseDate.setHours(0, 0, 0, 0);
           if (expenseDate.getTime() === date.getTime()) {
-            spent += expense.amount;
+            // Valores são negativos, pegar absoluto
+            spent += Math.abs(expense.amount);
           }
         });
       }
