@@ -229,18 +229,18 @@ export const addDailyExpense = async (expenseData) => {
       throw new Error('Valor é obrigatório');
     }
 
-    // Validar que o valor é positivo
+    // Validar que o valor é positivo (usuário digita positivo)
     const amount = Number(expenseData.amount);
     if (amount <= 0) {
       throw new Error('O valor do gasto deve ser positivo');
     }
 
-    // Construir objeto validado
+    // Construir objeto validado (salvar como NEGATIVO - é uma despesa)
     const validatedData = {
       date: expenseData.date instanceof Timestamp
         ? expenseData.date
         : Timestamp.fromDate(new Date(expenseData.date)),
-      amount: amount,
+      amount: -amount, // NEGATIVO porque é despesa
       createdAt: serverTimestamp()
     };
 
@@ -318,7 +318,8 @@ export const getExpensesByDate = async (date) => {
       return expenseDate.getTime() === targetDate.getTime();
     });
 
-    const total = filtered.reduce((sum, expense) => sum + expense.amount, 0);
+    // total é negativo (soma de valores negativos), então pegamos o absoluto
+    const total = filtered.reduce((sum, expense) => sum + Math.abs(expense.amount), 0);
 
     return { success: true, expenses: filtered, total };
   } catch (error) {

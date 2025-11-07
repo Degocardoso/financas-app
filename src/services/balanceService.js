@@ -48,12 +48,13 @@ export const getUnifiedBalance = async () => {
       });
     }
 
-    // 3. Subtrair despesas diárias reais já registradas
+    // 3. Somar despesas diárias (valores negativos)
     const expensesResult = await getDailyExpenses();
     if (expensesResult.success) {
       expensesResult.expenses.forEach(expense => {
-        totalBalance -= expense.amount;
-        breakdown.fromDailyExpenses -= expense.amount;
+        // expense.amount já é negativo, então somamos diretamente
+        totalBalance += expense.amount;
+        breakdown.fromDailyExpenses += expense.amount;
       });
     }
 
@@ -151,13 +152,13 @@ export const getCurrentMonthExpenses = async () => {
 
     let total = 0;
 
-    // Despesas diárias do mês
+    // Despesas diárias do mês (valores negativos, então pegamos o absoluto)
     const expensesResult = await getDailyExpenses();
     if (expensesResult.success) {
       expensesResult.expenses.forEach(expense => {
         const expenseDate = expense.date.toDate();
         if (expenseDate >= firstDay && expenseDate <= lastDay) {
-          total += expense.amount;
+          total += Math.abs(expense.amount); // Converter negativo para positivo
         }
       });
     }

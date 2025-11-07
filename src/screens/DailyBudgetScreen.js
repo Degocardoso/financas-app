@@ -18,29 +18,24 @@ import {
   getDailyBudgets,
   addDailyExpense,
   getDailyExpenses,
-  compareBudgetVsSpent,
-  getExpensesByDate,
+  deleteDailyExpense,
+  getActiveBudgetForDate,
 } from '../services/dailyBudgetService';
 
 const DailyBudgetScreen = () => {
   const { theme } = useTheme();
-  const [expenses, setExpenses] = useState([]);
-  const [budgets, setBudgets] = useState([]);
+  const [monthlyData, setMonthlyData] = useState([]);
+  const [currentBudget, setCurrentBudget] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
-  const [modalType, setModalType] = useState('expense'); // 'expense' ou 'budget'
+  const [editDayModal, setEditDayModal] = useState(false);
 
-  // Estados do formulário de gasto
-  const [expenseAmount, setExpenseAmount] = useState('');
-  const [expenseDescription, setExpenseDescription] = useState('');
-  const [expenseDate, setExpenseDate] = useState(new Date());
-
-  // Estados do formulário de orçamento
+  // Estado para orçamento
   const [budgetAmount, setBudgetAmount] = useState('');
-  const [budgetStartDate, setBudgetStartDate] = useState(new Date());
 
-  // Estado de comparação do dia
-  const [todayComparison, setTodayComparison] = useState(null);
+  // Estado para edição de dia específico
+  const [selectedDay, setSelectedDay] = useState(null);
+  const [dayAmount, setDayAmount] = useState('');
 
   useEffect(() => {
     loadData();
@@ -48,214 +43,204 @@ const DailyBudgetScreen = () => {
 
   const loadData = async () => {
     setRefreshing(true);
-    await Promise.all([
-      loadExpenses(),
-      loadBudgets(),
-      loadTodayComparison(),
-    ]);
+    await loadMonthlyData();
     setRefreshing(false);
   };
 
-  const loadExpenses = async () => {
-    const result = await getDailyExpenses();
-    if (result.success) {
-      setExpenses(result.expenses);
-    }
-  };
+  // Carrega dados do mês atual
+  const loadMonthlyData = async () => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const startDay = now.getDate(); // Dia atual
 
-  const loadBudgets = async () => {
-    const result = await getDailyBudgets();
-    if (result.success) {
-      setBudgets(result.budgets);
-    }
-  };
+    // Buscar orçamento ativo
+    const budgetResult = await getActiveBudgetForDate(now);
+    const budget = budgetResult.success ? budgetResult.budget.amount : 0;
+    setCurrentBudget(budget);
 
-  const loadTodayComparison = async () => {
-    const result = await compareBudgetVsSpent(new Date());
-    if (result.success) {
-      setTodayComparison(result);
-    }
-  };
+    // Buscar todas as despesas do mês
+    const expensesResult = await getDailyExpenses();
+    const expensesMap = {};
 
-  const handleAddExpense = async () => {
-    if (!expenseAmount || parseFloat(expenseAmount) <= 0) {
-      Alert.alert('Erro', 'Valor deve ser maior que zero');
-      return;
+    if (expensesResult.success) {
+      expensesResult.expenses.forEach(expense => {
+        const expenseDate = expense.date.toDate();
+        if (expenseDate.getMonth() === month && expenseDate.getFullYear() === year) {
+          const day = expenseDate.getDate();
+          expensesMap[day] = expense;
+        }
+      });
     }
 
-    const result = await addDailyExpense({
-      date: expenseDate,
-      amount: parseFloat(expenseAmount),
-      description: expenseDescription.trim() || 'Gasto diário',
-    });
+    // Gerar array com todos os dias do mês (do dia atual até o fim)
+    const days = [];
+    for (let day = startDay; day <= daysInMonth; day++) {
+      const date = new Date(year, month, day);
+      const expense = expensesMap[day];
 
-    if (result.success) {
-      Alert.alert('Sucesso', 'Gasto adicionado!');
-      setModalVisible(false);
-      resetExpenseForm();
-      loadData();
-    } else {
-      Alert.alert('Erro', result.error);
+      days.push({
+        day,
+        date,
+        budgetAmount: budget,
+        realAmount: expense ? Math.abs(expense.amount) : null, // Valor absoluto (banco salva negativo)
+        expenseId: expense ? expense.id : null,
+        hasRealExpense: !!expense,
+      });
     }
+
+    setMonthlyData(days);
   };
 
   const handleSetBudget = async () => {
     if (!budgetAmount || parseFloat(budgetAmount) <= 0) {
-      Alert.alert('Erro', 'Valor deve ser maior que zero');
+      Alert.alert('Erro', 'Valor do orçamento deve ser maior que zero');
       return;
     }
 
     const result = await setDailyBudget({
       amount: parseFloat(budgetAmount),
-      startDate: budgetStartDate,
+      startDate: new Date(),
     });
 
     if (result.success) {
-      Alert.alert('Sucesso', 'Orçamento definido!');
+      Alert.alert('Sucesso', 'Orçamento diário definido!');
       setModalVisible(false);
-      resetBudgetForm();
+      setBudgetAmount('');
       loadData();
     } else {
       Alert.alert('Erro', result.error);
     }
   };
 
-  const resetExpenseForm = () => {
-    setExpenseAmount('');
-    setExpenseDescription('');
-    setExpenseDate(new Date());
+  const openEditDay = (dayData) => {
+    setSelectedDay(dayData);
+    setDayAmount(dayData.realAmount ? dayData.realAmount.toString() : '');
+    setEditDayModal(true);
   };
 
-  const resetBudgetForm = () => {
-    setBudgetAmount('');
-    setBudgetStartDate(new Date());
-  };
+  const handleSaveDayExpense = async () => {
+    if (!selectedDay) return;
 
-  const openModal = (type) => {
-    setModalType(type);
-    setModalVisible(true);
-  };
+    const amount = parseFloat(dayAmount);
 
-  const formatDate = (date) => {
-    if (!date || !date.toDate) return '';
-    const d = date.toDate();
-    return d.toLocaleDateString('pt-BR');
-  };
-
-  const groupExpensesByDate = () => {
-    const grouped = {};
-    expenses.forEach((expense) => {
-      const date = formatDate(expense.date);
-      if (!grouped[date]) {
-        grouped[date] = [];
+    // Se valor = 0 ou vazio, deletar a despesa
+    if (!dayAmount || amount === 0) {
+      if (selectedDay.expenseId) {
+        const result = await deleteDailyExpense(selectedDay.expenseId);
+        if (result.success) {
+          Alert.alert('Sucesso', 'Despesa removida!');
+          setEditDayModal(false);
+          loadData();
+        } else {
+          Alert.alert('Erro', result.error);
+        }
+      } else {
+        setEditDayModal(false);
       }
-      grouped[date].push(expense);
+      return;
+    }
+
+    if (amount < 0) {
+      Alert.alert('Erro', 'Digite apenas o valor positivo (será convertido para despesa)');
+      return;
+    }
+
+    // Salvar valor real
+    const result = await addDailyExpense({
+      date: selectedDay.date,
+      amount: amount,
+      description: `Gasto dia ${selectedDay.day}`,
     });
-    return Object.keys(grouped).map((date) => ({
-      date,
-      expenses: grouped[date],
-      total: grouped[date].reduce((sum, e) => sum + e.amount, 0),
-    }));
+
+    if (result.success) {
+      Alert.alert('Sucesso', 'Gasto atualizado!');
+      setEditDayModal(false);
+      loadData();
+    } else {
+      Alert.alert('Erro', result.error);
+    }
   };
 
-  const renderExpenseGroup = ({ item }) => (
-    <View style={[styles.expenseGroup, { backgroundColor: theme.colors.surface }]}>
-      <View style={styles.expenseGroupHeader}>
-        <Text style={[styles.expenseGroupDate, { color: theme.colors.text }]}>
-          {item.date}
-        </Text>
-        <Text style={[styles.expenseGroupTotal, { color: theme.colors.error }]}>
-          R$ {item.total.toFixed(2)}
-        </Text>
-      </View>
-      {item.expenses.map((expense, index) => (
-        <View key={expense.id} style={styles.expenseItem}>
-          <Text style={[styles.expenseDescription, { color: theme.colors.textSecondary }]}>
-            {expense.description || 'Gasto diário'}
+  const renderDayItem = ({ item }) => {
+    // Determinar valor a mostrar: real ou orçamento
+    const displayAmount = item.hasRealExpense ? item.realAmount : item.budgetAmount;
+    const isReal = item.hasRealExpense;
+    const isOverBudget = isReal && item.realAmount > item.budgetAmount;
+    const isUnderBudget = isReal && item.realAmount < item.budgetAmount;
+
+    return (
+      <TouchableOpacity
+        style={[styles.dayCard, { backgroundColor: theme.colors.surface }]}
+        onPress={() => openEditDay(item)}
+      >
+        <View style={styles.dayHeader}>
+          <Text style={[styles.dayNumber, { color: theme.colors.text }]}>
+            Dia {item.day}
           </Text>
-          <Text style={[styles.expenseAmount, { color: theme.colors.text }]}>
-            R$ {expense.amount.toFixed(2)}
-          </Text>
+          {isReal && (
+            <Text style={[styles.dayBadge, {
+              backgroundColor: isOverBudget ? theme.colors.error + '20' : theme.colors.success + '20',
+              color: isOverBudget ? theme.colors.error : theme.colors.success,
+            }]}>
+              {isOverBudget ? 'Acima' : 'Abaixo'}
+            </Text>
+          )}
         </View>
-      ))}
-    </View>
-  );
+
+        <Text style={[styles.dayAmount, { color: theme.colors.error }]}>
+          -R$ {displayAmount.toFixed(2)}
+        </Text>
+
+        {!isReal && item.budgetAmount > 0 && (
+          <Text style={[styles.dayLabel, { color: theme.colors.textTertiary }]}>
+            (Orçamento)
+          </Text>
+        )}
+        {isReal && (
+          <Text style={[styles.dayLabel, { color: theme.colors.textSecondary }]}>
+            Orçamento: R$ {item.budgetAmount.toFixed(2)}
+          </Text>
+        )}
+      </TouchableOpacity>
+    );
+  };
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      {/* Card de Resumo do Dia */}
-      {todayComparison && (
-        <View style={[styles.todayCard, { backgroundColor: theme.colors.surface }]}>
-          <Text style={[styles.todayTitle, { color: theme.colors.text }]}>
-            Hoje
+      {/* Header com Orçamento Atual */}
+      <View style={[styles.header, { backgroundColor: theme.colors.surface }]}>
+        <View style={styles.headerContent}>
+          <Text style={[styles.headerTitle, { color: theme.colors.text }]}>
+            Orçamento Diário
           </Text>
-          <View style={styles.todayContent}>
-            <View style={styles.todayRow}>
-              <Text style={[styles.todayLabel, { color: theme.colors.textSecondary }]}>
-                Orçamento:
-              </Text>
-              <Text style={[styles.todayValue, { color: theme.colors.text }]}>
-                R$ {todayComparison.budget?.toFixed(2) || '0.00'}
-              </Text>
-            </View>
-            <View style={styles.todayRow}>
-              <Text style={[styles.todayLabel, { color: theme.colors.textSecondary }]}>
-                Gasto:
-              </Text>
-              <Text style={[styles.todayValue, { color: theme.colors.error }]}>
-                R$ {todayComparison.spent.toFixed(2)}
-              </Text>
-            </View>
-            <View style={[styles.todayDivider, { backgroundColor: theme.colors.border }]} />
-            <View style={styles.todayRow}>
-              <Text style={[styles.todayLabel, { color: theme.colors.text, fontWeight: '600' }]}>
-                Restante:
-              </Text>
-              <Text
-                style={[
-                  styles.todayValue,
-                  styles.todayRemaining,
-                  {
-                    color: todayComparison.hasExceeded
-                      ? theme.colors.error
-                      : theme.colors.success,
-                  },
-                ]}
-              >
-                R$ {todayComparison.remaining.toFixed(2)}
-              </Text>
-            </View>
-          </View>
+          <Text style={[styles.headerValue, { color: theme.colors.primary }]}>
+            R$ {currentBudget ? currentBudget.toFixed(2) : '0.00'}
+          </Text>
         </View>
-      )}
-
-      {/* Botões de Ação */}
-      <View style={styles.actionsContainer}>
         <TouchableOpacity
-          style={[styles.actionButton, { backgroundColor: theme.colors.error }]}
-          onPress={() => openModal('expense')}
+          style={[styles.editBudgetButton, { backgroundColor: theme.colors.primary }]}
+          onPress={() => setModalVisible(true)}
         >
-          <Text style={[styles.actionButtonText, { color: theme.colors.onError }]}>
-            + Gasto
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.actionButton, { backgroundColor: theme.colors.primary }]}
-          onPress={() => openModal('budget')}
-        >
-          <Text style={[styles.actionButtonText, { color: theme.colors.onPrimary }]}>
-            Definir Orçamento
+          <Text style={[styles.editBudgetText, { color: theme.colors.onPrimary }]}>
+            {currentBudget ? 'Alterar' : 'Definir'}
           </Text>
         </TouchableOpacity>
       </View>
 
-      {/* Lista de Gastos */}
+      <Text style={[styles.sectionTitle, { color: theme.colors.textSecondary }]}>
+        Despesas do Mês (Toque em um dia para editar)
+      </Text>
+
+      {/* Lista de Dias do Mês */}
       <FlatList
-        data={groupExpensesByDate()}
-        renderItem={renderExpenseGroup}
-        keyExtractor={(item) => item.date}
+        data={monthlyData}
+        renderItem={renderDayItem}
+        keyExtractor={(item) => item.day.toString()}
+        numColumns={2}
         contentContainerStyle={styles.listContent}
+        columnWrapperStyle={styles.columnWrapper}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -266,13 +251,15 @@ const DailyBudgetScreen = () => {
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <Text style={[styles.emptyText, { color: theme.colors.textSecondary }]}>
-              Nenhum gasto registrado ainda.
+              {currentBudget
+                ? 'Carregando dias do mês...'
+                : 'Defina um orçamento diário para começar'}
             </Text>
           </View>
         }
       />
 
-      {/* Modal */}
+      {/* Modal de Definir Orçamento */}
       <Modal
         visible={modalVisible}
         animationType="slide"
@@ -281,110 +268,127 @@ const DailyBudgetScreen = () => {
       >
         <View style={[styles.modalOverlay, { backgroundColor: theme.colors.overlay }]}>
           <View style={[styles.modalContent, { backgroundColor: theme.colors.background }]}>
-            <ScrollView>
-              <Text style={[styles.modalTitle, { color: theme.colors.text }]}>
-                {modalType === 'expense' ? 'Novo Gasto' : 'Definir Orçamento Diário'}
+            <Text style={[styles.modalTitle, { color: theme.colors.text }]}>
+              Definir Orçamento Diário
+            </Text>
+
+            <Text style={[styles.label, { color: theme.colors.textSecondary }]}>
+              Valor do Orçamento por Dia
+            </Text>
+            <TextInput
+              style={[
+                styles.input,
+                {
+                  backgroundColor: theme.colors.surface,
+                  color: theme.colors.text,
+                  borderColor: theme.colors.border,
+                },
+              ]}
+              placeholder="Ex: 30.00"
+              placeholderTextColor={theme.colors.textTertiary}
+              value={budgetAmount}
+              onChangeText={setBudgetAmount}
+              keyboardType="numeric"
+            />
+
+            <Text style={[styles.helperText, { color: theme.colors.textTertiary }]}>
+              Este valor será aplicado a partir de hoje até o fim do mês. Você pode editar o gasto real de cada dia individualmente.
+            </Text>
+
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalButton, { backgroundColor: theme.colors.surface }]}
+                onPress={() => {
+                  setModalVisible(false);
+                  setBudgetAmount('');
+                }}
+              >
+                <Text style={[styles.modalButtonText, { color: theme.colors.textSecondary }]}>
+                  Cancelar
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.modalButton, { backgroundColor: theme.colors.success }]}
+                onPress={handleSetBudget}
+              >
+                <Text style={[styles.modalButtonText, { color: theme.colors.onSuccess }]}>
+                  Salvar
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Modal de Editar Dia */}
+      <Modal
+        visible={editDayModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setEditDayModal(false)}
+      >
+        <View style={[styles.modalOverlay, { backgroundColor: theme.colors.overlay }]}>
+          <View style={[styles.modalContent, { backgroundColor: theme.colors.background }]}>
+            <Text style={[styles.modalTitle, { color: theme.colors.text }]}>
+              Editar Dia {selectedDay?.day}
+            </Text>
+
+            <View style={[styles.infoBox, { backgroundColor: theme.colors.surface }]}>
+              <Text style={[styles.infoLabel, { color: theme.colors.textSecondary }]}>
+                Orçamento planejado:
               </Text>
+              <Text style={[styles.infoValue, { color: theme.colors.text }]}>
+                R$ {selectedDay?.budgetAmount.toFixed(2) || '0.00'}
+              </Text>
+            </View>
 
-              {modalType === 'expense' ? (
-                <>
-                  <Text style={[styles.label, { color: theme.colors.textSecondary }]}>
-                    Valor
-                  </Text>
-                  <TextInput
-                    style={[
-                      styles.input,
-                      {
-                        backgroundColor: theme.colors.surface,
-                        color: theme.colors.text,
-                        borderColor: theme.colors.border,
-                      },
-                    ]}
-                    placeholder="0.00"
-                    placeholderTextColor={theme.colors.textTertiary}
-                    value={expenseAmount}
-                    onChangeText={setExpenseAmount}
-                    keyboardType="numeric"
-                  />
+            <Text style={[styles.label, { color: theme.colors.textSecondary }]}>
+              Gasto Real
+            </Text>
+            <TextInput
+              style={[
+                styles.input,
+                {
+                  backgroundColor: theme.colors.surface,
+                  color: theme.colors.text,
+                  borderColor: theme.colors.border,
+                },
+              ]}
+              placeholder="Digite o valor gasto (ou 0 para remover)"
+              placeholderTextColor={theme.colors.textTertiary}
+              value={dayAmount}
+              onChangeText={setDayAmount}
+              keyboardType="numeric"
+            />
 
-                  <Text style={[styles.label, { color: theme.colors.textSecondary }]}>
-                    Descrição (opcional)
-                  </Text>
-                  <TextInput
-                    style={[
-                      styles.input,
-                      {
-                        backgroundColor: theme.colors.surface,
-                        color: theme.colors.text,
-                        borderColor: theme.colors.border,
-                      },
-                    ]}
-                    placeholder="Ex: Almoço, Combustível..."
-                    placeholderTextColor={theme.colors.textTertiary}
-                    value={expenseDescription}
-                    onChangeText={setExpenseDescription}
-                  />
-                </>
-              ) : (
-                <>
-                  <Text style={[styles.label, { color: theme.colors.textSecondary }]}>
-                    Valor do Orçamento Diário
-                  </Text>
-                  <TextInput
-                    style={[
-                      styles.input,
-                      {
-                        backgroundColor: theme.colors.surface,
-                        color: theme.colors.text,
-                        borderColor: theme.colors.border,
-                      },
-                    ]}
-                    placeholder="Ex: 30.00"
-                    placeholderTextColor={theme.colors.textTertiary}
-                    value={budgetAmount}
-                    onChangeText={setBudgetAmount}
-                    keyboardType="numeric"
-                  />
+            <Text style={[styles.helperText, { color: theme.colors.textTertiary }]}>
+              • Se gastou mais ou menos que o orçamento, digite o valor real{'\n'}
+              • Digite 0 ou deixe vazio para usar o orçamento padrão
+            </Text>
 
-                  <Text style={[styles.helperText, { color: theme.colors.textTertiary }]}>
-                    Este valor será aplicado a partir de hoje.
-                  </Text>
-                </>
-              )}
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalButton, { backgroundColor: theme.colors.surface }]}
+                onPress={() => {
+                  setEditDayModal(false);
+                  setDayAmount('');
+                }}
+              >
+                <Text style={[styles.modalButtonText, { color: theme.colors.textSecondary }]}>
+                  Cancelar
+                </Text>
+              </TouchableOpacity>
 
-              <View style={styles.modalButtons}>
-                <TouchableOpacity
-                  style={[
-                    styles.modalButton,
-                    { backgroundColor: theme.colors.surface },
-                  ]}
-                  onPress={() => {
-                    setModalVisible(false);
-                    if (modalType === 'expense') {
-                      resetExpenseForm();
-                    } else {
-                      resetBudgetForm();
-                    }
-                  }}
-                >
-                  <Text style={[styles.modalButtonText, { color: theme.colors.textSecondary }]}>
-                    Cancelar
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[
-                    styles.modalButton,
-                    { backgroundColor: theme.colors.success },
-                  ]}
-                  onPress={modalType === 'expense' ? handleAddExpense : handleSetBudget}
-                >
-                  <Text style={[styles.modalButtonText, { color: theme.colors.onSuccess }]}>
-                    Salvar
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            </ScrollView>
+              <TouchableOpacity
+                style={[styles.modalButton, { backgroundColor: theme.colors.success }]}
+                onPress={handleSaveDayExpense}
+              >
+                <Text style={[styles.modalButtonText, { color: theme.colors.onSuccess }]}>
+                  Salvar
+                </Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </Modal>
@@ -396,96 +400,85 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  todayCard: {
-    margin: 20,
-    borderRadius: 12,
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     padding: 20,
     elevation: 2,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 2,
+    shadowRadius: 4,
   },
-  todayTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    marginBottom: 16,
-  },
-  todayContent: {
-    gap: 12,
-  },
-  todayRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  todayLabel: {
-    fontSize: 16,
-  },
-  todayValue: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  todayRemaining: {
-    fontSize: 20,
-  },
-  todayDivider: {
-    height: 1,
-    marginVertical: 4,
-  },
-  actionsContainer: {
-    flexDirection: 'row',
-    paddingHorizontal: 20,
-    gap: 12,
-    marginBottom: 20,
-  },
-  actionButton: {
+  headerContent: {
     flex: 1,
-    paddingVertical: 14,
-    borderRadius: 12,
-    alignItems: 'center',
   },
-  actionButtonText: {
+  headerTitle: {
     fontSize: 16,
     fontWeight: '600',
+    marginBottom: 4,
+  },
+  headerValue: {
+    fontSize: 28,
+    fontWeight: '700',
+  },
+  editBudgetButton: {
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 20,
+  },
+  editBudgetText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  sectionTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
   },
   listContent: {
     padding: 20,
-    paddingTop: 0,
   },
-  expenseGroup: {
+  columnWrapper: {
+    justifyContent: 'space-between',
+  },
+  dayCard: {
+    flex: 0.48,
     borderRadius: 12,
     padding: 16,
     marginBottom: 16,
+    elevation: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
   },
-  expenseGroupHeader: {
+  dayHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 12,
-    paddingBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0,0,0,0.1)',
+    alignItems: 'center',
+    marginBottom: 8,
   },
-  expenseGroupDate: {
-    fontSize: 16,
+  dayNumber: {
+    fontSize: 14,
     fontWeight: '600',
   },
-  expenseGroupTotal: {
-    fontSize: 16,
+  dayBadge: {
+    fontSize: 10,
+    fontWeight: '600',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  dayAmount: {
+    fontSize: 20,
     fontWeight: '700',
+    marginBottom: 4,
   },
-  expenseItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: 8,
-  },
-  expenseDescription: {
-    fontSize: 14,
-    flex: 1,
-  },
-  expenseAmount: {
-    fontSize: 14,
-    fontWeight: '600',
+  dayLabel: {
+    fontSize: 11,
   },
   emptyContainer: {
     alignItems: 'center',
@@ -493,6 +486,7 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 16,
+    textAlign: 'center',
   },
   modalOverlay: {
     flex: 1,
@@ -522,9 +516,22 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   helperText: {
+    fontSize: 13,
+    marginTop: 12,
+    lineHeight: 20,
+  },
+  infoBox: {
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 16,
+  },
+  infoLabel: {
     fontSize: 12,
-    marginTop: 8,
-    fontStyle: 'italic',
+    marginBottom: 4,
+  },
+  infoValue: {
+    fontSize: 20,
+    fontWeight: '700',
   },
   modalButtons: {
     flexDirection: 'row',
