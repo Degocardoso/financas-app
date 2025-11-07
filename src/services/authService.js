@@ -1,10 +1,12 @@
 // src/services/authService.js
-import { 
-  createUserWithEmailAndPassword, 
+import {
+  createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   signOut,
   GoogleAuthProvider,
-  signInWithCredential
+  signInWithCredential,
+  EmailAuthProvider,
+  reauthenticateWithCredential
 } from 'firebase/auth';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '../config/firebase';
@@ -55,4 +57,26 @@ export const loginWithGoogle = async () => {
   // Por enquanto, vamos deixar como placeholder
   console.log('Login com Google requer configuração adicional no Expo');
   return { success: false, error: 'Não implementado ainda' };
+};
+
+// Reautenticar usuário com senha (para operações sensíveis)
+export const reauthenticateUser = async (password) => {
+  try {
+    const user = auth.currentUser;
+
+    if (!user || !user.email) {
+      throw new Error('Usuário não autenticado');
+    }
+
+    // Criar credencial com email e senha
+    const credential = EmailAuthProvider.credential(user.email, password);
+
+    // Reautenticar
+    await reauthenticateWithCredential(user, credential);
+
+    return { success: true };
+  } catch (error) {
+    console.error('Erro ao reautenticar:', error);
+    return { success: false, error: error.message };
+  }
 };

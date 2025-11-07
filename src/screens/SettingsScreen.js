@@ -1,5 +1,5 @@
 // src/screens/SettingsScreen.js
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -8,13 +8,85 @@ import {
   TouchableOpacity,
   Switch,
   Alert,
+  TextInput,
+  Modal,
 } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
 import { THEME_MODES } from '../config/themes';
-import { logout } from '../services/authService';
+import { logout, reauthenticateUser } from '../services/authService';
+import { deleteAllUserData } from '../services/dataService';
 
 const SettingsScreen = ({ navigation }) => {
   const { theme, themeMode, isDark, setThemeMode } = useTheme();
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [password, setPassword] = useState('');
+  const [deleting, setDeleting] = useState(false);
+
+  const handleDeleteAllData = () => {
+    Alert.alert(
+      '⚠️ ATENÇÃO',
+      'Você está prestes a DELETAR TODOS OS DADOS do aplicativo.\n\n' +
+      'Isso inclui:\n' +
+      '• Todas as transações importadas\n' +
+      '• Todas as receitas cadastradas\n' +
+      '• Todas as despesas diárias\n' +
+      '• Todos os lançamentos futuros\n\n' +
+      'Esta ação é IRREVERSÍVEL!\n\n' +
+      'Digite sua senha para confirmar:',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Continuar',
+          style: 'destructive',
+          onPress: () => setShowDeleteModal(true)
+        }
+      ]
+    );
+  };
+
+  const confirmDeleteAllData = async () => {
+    if (!password || password.trim() === '') {
+      Alert.alert('Erro', 'Por favor, digite sua senha');
+      return;
+    }
+
+    setDeleting(true);
+
+    try {
+      // 1. Reautenticar usuário com senha
+      const authResult = await reauthenticateUser(password);
+
+      if (!authResult.success) {
+        Alert.alert('Erro', 'Senha incorreta. Tente novamente.');
+        setDeleting(false);
+        return;
+      }
+
+      // 2. Deletar todos os dados
+      const deleteResult = await deleteAllUserData();
+
+      if (deleteResult.success) {
+        setShowDeleteModal(false);
+        setPassword('');
+        Alert.alert(
+          'Sucesso',
+          'Todos os dados foram removidos com sucesso!',
+          [
+            {
+              text: 'OK',
+              onPress: () => navigation.navigate('Home')
+            }
+          ]
+        );
+      } else {
+        Alert.alert('Erro', deleteResult.error || 'Erro ao deletar dados');
+      }
+    } catch (error) {
+      Alert.alert('Erro', 'Erro ao processar: ' + error.message);
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   const handleLogout = async () => {
     Alert.alert(
@@ -135,6 +207,32 @@ const SettingsScreen = ({ navigation }) => {
         </Text>
       </View>
 
+      {/* Seção: Dados */}
+      <View style={styles.section}>
+        <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
+          Dados
+        </Text>
+
+        <TouchableOpacity
+          style={[
+            styles.button,
+            {
+              backgroundColor: theme.colors.error,
+              borderWidth: 2,
+              borderColor: theme.colors.errorDark,
+            },
+          ]}
+          onPress={handleDeleteAllData}
+        >
+          <Text style={[styles.buttonText, { color: theme.colors.onError }]}>
+            🗑️ Limpar Todos os Dados
+          </Text>
+          <Text style={[styles.buttonSubtext, { color: theme.colors.onError }]}>
+            Remove todas as transações, receitas e despesas
+          </Text>
+        </TouchableOpacity>
+      </View>
+
       {/* Seção: Conta */}
       <View style={styles.section}>
         <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
@@ -155,6 +253,80 @@ const SettingsScreen = ({ navigation }) => {
           </Text>
         </TouchableOpacity>
       </View>
+
+      {/* Modal de Confirmação */}
+      <Modal
+        visible={showDeleteModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => !deleting && setShowDeleteModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: theme.colors.surface }]}>
+            <Text style={[styles.modalTitle, { color: theme.colors.error }]}>
+              ⚠️ CONFIRME A EXCLUSÃO
+            </Text>
+
+            <Text style={[styles.modalText, { color: theme.colors.text }]}>
+              Digite sua senha para confirmar a exclusão de TODOS os dados:
+            </Text>
+
+            <TextInput
+              style={[
+                styles.modalInput,
+                {
+                  backgroundColor: theme.colors.background,
+                  color: theme.colors.text,
+                  borderColor: theme.colors.border
+                }
+              ]}
+              placeholder="Sua senha"
+              placeholderTextColor={theme.colors.textTertiary}
+              secureTextEntry
+              value={password}
+              onChangeText={setPassword}
+              editable={!deleting}
+            />
+
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[
+                  styles.modalButton,
+                  {
+                    backgroundColor: theme.colors.surface,
+                    borderWidth: 1,
+                    borderColor: theme.colors.border
+                  }
+                ]}
+                onPress={() => {
+                  setShowDeleteModal(false);
+                  setPassword('');
+                }}
+                disabled={deleting}
+              >
+                <Text style={[styles.modalButtonText, { color: theme.colors.text }]}>
+                  Cancelar
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.modalButton,
+                  {
+                    backgroundColor: theme.colors.error,
+                  }
+                ]}
+                onPress={confirmDeleteAllData}
+                disabled={deleting}
+              >
+                <Text style={[styles.modalButtonText, { color: theme.colors.onError }]}>
+                  {deleting ? 'Deletando...' : 'Confirmar Exclusão'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       {/* Versão */}
       <View style={styles.versionContainer}>
@@ -244,6 +416,57 @@ const styles = StyleSheet.create({
   },
   buttonText: {
     fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  buttonSubtext: {
+    fontSize: 12,
+    opacity: 0.9,
+    marginTop: 4,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    borderRadius: 16,
+    padding: 24,
+    width: '100%',
+    maxWidth: 400,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  modalText: {
+    fontSize: 14,
+    marginBottom: 20,
+    lineHeight: 20,
+  },
+  modalInput: {
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    borderWidth: 1,
+    marginBottom: 20,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  modalButton: {
+    flex: 1,
+    borderRadius: 8,
+    padding: 14,
+    alignItems: 'center',
+  },
+  modalButtonText: {
+    fontSize: 14,
     fontWeight: '600',
   },
   versionContainer: {
