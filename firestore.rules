@@ -86,6 +86,93 @@ service cloud.firestore {
     }
 
     // ========================================
+    // VALIDAÇÃO DE SCHEMA - RECEITAS
+    // ========================================
+    function isValidIncome() {
+      let data = request.resource.data;
+
+      return (
+        // Campos obrigatórios
+        data.keys().hasAll(['description', 'amount', 'incomeType']) &&
+
+        // Tipos corretos
+        data.description is string &&
+        data.amount is number &&
+        data.incomeType is string &&
+
+        // Validações de conteúdo
+        isValidStringLength(data.description, 500) &&
+        isValidAmount(data.amount) &&
+        data.amount > 0 && // Receita deve ser positiva
+        (data.incomeType == 'single' || data.incomeType == 'recurring') &&
+
+        // Se for recorrente, deve ter periodicidade
+        (data.incomeType == 'single' ||
+         (data.keys().hasAny(['frequency']) &&
+          (data.frequency == 'daily' ||
+           data.frequency == 'weekly' ||
+           data.frequency == 'biweekly' ||
+           data.frequency == 'monthly' ||
+           data.frequency == 'yearly'))) &&
+
+        // Se tiver data, deve ser timestamp
+        (!data.keys().hasAny(['date']) || data.date is timestamp) &&
+
+        // Se tiver dayOfMonth (para receitas mensais), deve ser válido
+        (!data.keys().hasAny(['dayOfMonth']) || (data.dayOfMonth is int && data.dayOfMonth >= 1 && data.dayOfMonth <= 31))
+      );
+    }
+
+    // ========================================
+    // VALIDAÇÃO DE SCHEMA - ORÇAMENTO DIÁRIO
+    // ========================================
+    function isValidDailyBudget() {
+      let data = request.resource.data;
+
+      return (
+        // Campos obrigatórios
+        data.keys().hasAll(['amount', 'startDate']) &&
+
+        // Tipos corretos
+        data.amount is number &&
+        data.startDate is timestamp &&
+
+        // Validações de conteúdo
+        isValidAmount(data.amount) &&
+        data.amount > 0 && // Orçamento deve ser positivo
+
+        // Se tiver endDate, deve ser timestamp
+        (!data.keys().hasAny(['endDate']) || data.endDate is timestamp)
+      );
+    }
+
+    // ========================================
+    // VALIDAÇÃO DE SCHEMA - GASTO DIÁRIO REAL
+    // ========================================
+    function isValidDailyExpense() {
+      let data = request.resource.data;
+
+      return (
+        // Campos obrigatórios
+        data.keys().hasAll(['date', 'amount']) &&
+
+        // Tipos corretos
+        data.date is timestamp &&
+        data.amount is number &&
+
+        // Validações de conteúdo
+        isValidAmount(data.amount) &&
+        data.amount > 0 && // Gasto deve ser positivo
+
+        // Se tiver descrição, deve ser válida
+        (!data.keys().hasAny(['description']) || isValidStringLength(data.description, 500)) &&
+
+        // Se tiver importHash, deve ser válido
+        (!data.keys().hasAny(['importHash']) || isValidStringLength(data.importHash, 100))
+      );
+    }
+
+    // ========================================
     // VALIDAÇÃO DE PERFIL DE USUÁRIO
     // ========================================
     function isValidUserProfile() {
@@ -170,6 +257,69 @@ service cloud.firestore {
                          isValidRecurringTransaction();
 
         // DELETE: Pode deletar suas recorrências
+        allow delete: if isSignedIn() && isOwner(userId);
+      }
+
+      // ========================================
+      // SUBCOLEÇÃO: RECEITAS (ÚNICAS E RECORRENTES)
+      // ========================================
+      match /incomes/{incomeId} {
+        // READ: Usuário só acessa suas próprias receitas
+        allow read: if isSignedIn() && isOwner(userId);
+
+        // CREATE: Validação completa de schema
+        allow create: if isSignedIn() &&
+                         isOwner(userId) &&
+                         isValidIncome();
+
+        // UPDATE: Pode atualizar, mas mantendo validação
+        allow update: if isSignedIn() &&
+                         isOwner(userId) &&
+                         isValidIncome();
+
+        // DELETE: Pode deletar suas receitas
+        allow delete: if isSignedIn() && isOwner(userId);
+      }
+
+      // ========================================
+      // SUBCOLEÇÃO: ORÇAMENTOS DIÁRIOS
+      // ========================================
+      match /dailyBudgets/{budgetId} {
+        // READ: Usuário só acessa seus próprios orçamentos
+        allow read: if isSignedIn() && isOwner(userId);
+
+        // CREATE: Validação completa de schema
+        allow create: if isSignedIn() &&
+                         isOwner(userId) &&
+                         isValidDailyBudget();
+
+        // UPDATE: Pode atualizar, mas mantendo validação
+        allow update: if isSignedIn() &&
+                         isOwner(userId) &&
+                         isValidDailyBudget();
+
+        // DELETE: Pode deletar seus orçamentos
+        allow delete: if isSignedIn() && isOwner(userId);
+      }
+
+      // ========================================
+      // SUBCOLEÇÃO: GASTOS DIÁRIOS REAIS
+      // ========================================
+      match /dailyExpenses/{expenseId} {
+        // READ: Usuário só acessa seus próprios gastos
+        allow read: if isSignedIn() && isOwner(userId);
+
+        // CREATE: Validação completa de schema
+        allow create: if isSignedIn() &&
+                         isOwner(userId) &&
+                         isValidDailyExpense();
+
+        // UPDATE: Pode atualizar, mas mantendo validação
+        allow update: if isSignedIn() &&
+                         isOwner(userId) &&
+                         isValidDailyExpense();
+
+        // DELETE: Pode deletar seus gastos
         allow delete: if isSignedIn() && isOwner(userId);
       }
     }
