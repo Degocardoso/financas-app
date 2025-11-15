@@ -24,6 +24,7 @@
         "backgroundColor": "#ffffff"
       },
       "package": "com.financasapp.app",
+      "versionCode": 1,
       "permissions": [
         "READ_EXTERNAL_STORAGE"
       ]
@@ -33,6 +34,15 @@
     },
     "plugins": [
       "expo-router"
-    ]
+    ],
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "6ff6ef52-ae2c-41c7-a9c4-a122971d4758"
+      }
+    },
+    "owner": "cardosodego"
   }
 }
