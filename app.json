@@ -1,42 +1,38 @@
 {
   "expo": {
-    "name": "financas-app",
+    "name": "Finanças App",
     "slug": "financas-app",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#191970"
+      "backgroundColor": "#ffffff"
     },
-    "extra": {
-      "eas": {
-        "projectId": "6ff6ef52-ae2c-41c7-a9c4-a122971d4758"
-      }
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.financasapp.app"
     },
     "android": {
-      "package": "com.cardosodego.financasapp",
-      "versionCode": 1,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#191970"
-      }
-    },
-    "ios": {
-      "supportsTablet": true
+        "backgroundColor": "#ffffff"
+      },
+      "package": "com.financasapp.app",
+      "permissions": [
+        "READ_EXTERNAL_STORAGE"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
-    "runtimeVersion": {
-      "policy": "appVersion"
-    },
-    "updates": {
-      "url": "https://u.expo.dev/6ff6ef52-ae2c-41c7-a9c4-a122971d4758"
-    },
     "plugins": [
-      "expo-asset"
+      "expo-router"
     ]
   }
 }

@@ -1,7 +1,6 @@
 {
   "cli": {
-    "version": ">= 16.26.0",
-    "appVersionSource": "remote"
+    "version": ">= 5.9.0"
   },
   "build": {
     "development": {
@@ -9,10 +8,28 @@
       "distribution": "internal"
     },
     "preview": {
-      "distribution": "internal"
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_FIREBASE_API_KEY": "",
+        "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN": "",
+        "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "",
+        "EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET": "",
+        "EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID": "",
+        "EXPO_PUBLIC_FIREBASE_APP_ID": ""
+      }
     },
     "production": {
-      "autoIncrement": true
+      "env": {
+        "EXPO_PUBLIC_FIREBASE_API_KEY": "",
+        "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN": "",
+        "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "",
+        "EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET": "",
+        "EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID": "",
+        "EXPO_PUBLIC_FIREBASE_APP_ID": ""
+      }
     }
   },
   "submit": {

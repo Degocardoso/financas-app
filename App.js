@@ -1,8 +1,10 @@
 // App.js
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { onAuthStateChanged } from 'firebase/auth';
+import * as SplashScreen from 'expo-splash-screen';
 import { auth } from './src/config/firebase';
 import { ThemeProvider } from './src/context/ThemeContext';
 
@@ -23,30 +25,53 @@ import DailyBudgetScreen from './src/screens/DailyBudgetScreen';
 import DashboardScreen from './src/screens/DashboardScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 
+// Previne que o splash screen esconda automaticamente
+SplashScreen.preventAutoHideAsync();
+
 const Stack = createNativeStackNavigator();
 
 export default function App() {
   const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [appIsReady, setAppIsReady] = useState(false);
 
   useEffect(() => {
-    // Observa mudanças no estado de autenticação
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      setUser(currentUser);
-      setLoading(false);
-    });
+    async function prepare() {
+      try {
+        // Observa mudanças no estado de autenticação
+        const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+          setUser(currentUser);
+        });
 
-    return unsubscribe;
+        // Simula carregamento de recursos
+        await new Promise(resolve => setTimeout(resolve, 500));
+
+        return unsubscribe;
+      } catch (e) {
+        console.warn('Erro ao inicializar app:', e);
+      } finally {
+        setAppIsReady(true);
+      }
+    }
+
+    prepare();
   }, []);
 
-  if (loading) {
-    return null; // Ou um splash screen
+  const onLayoutRootView = useCallback(async () => {
+    if (appIsReady) {
+      // Esconde o splash screen quando o app estiver pronto
+      await SplashScreen.hideAsync();
+    }
+  }, [appIsReady]);
+
+  if (!appIsReady) {
+    return null;
   }
 
   return (
-    <ThemeProvider>
-      <NavigationContainer>
-        <Stack.Navigator screenOptions={{ headerShown: false }}>
+    <View style={{ flex: 1 }} onLayout={onLayoutRootView}>
+      <ThemeProvider>
+        <NavigationContainer>
+          <Stack.Navigator screenOptions={{ headerShown: false }}>
           {user ? (
             // Usuário autenticado - mostra telas do app
             <>
@@ -94,5 +119,6 @@ export default function App() {
         </Stack.Navigator>
       </NavigationContainer>
     </ThemeProvider>
+    </View>
   );
 }
