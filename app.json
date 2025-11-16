@@ -9,6 +9,9 @@
       "resizeMode": "contain",
       "backgroundColor": "#3b82f6"
     },
+    "updates": {
+      "fallbackToCacheTimeout": 0
+    },
     "assetBundlePatterns": [
       "**/*"
     ],
@@ -28,6 +31,9 @@
     },
     "web": {
       "bundler": "metro"
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
     }
   }
 }
